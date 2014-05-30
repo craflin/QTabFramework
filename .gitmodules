@@ -1,0 +1,6 @@
+[submodule "Ext/libcppqt"]
+	path = Ext/libcppqt
+	url = https://github.com/donpillou/libcppqt.git
+[submodule "Ext/mare"]
+	path = Ext/mare
+	url = https://github.com/craflin/mare.git
