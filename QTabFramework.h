@@ -20,7 +20,6 @@ public:
 public:
   ~QTabFramework();
 
-  void addTab(const QString& title, QWidget* widget, QTabContainer* position, InsertPolicy insertPolicy);
   void addTab(const QString& title, QWidget* widget, InsertPolicy insertPolicy = InsertFloating, QWidget* position = 0);
   void moveTab(QWidget* widget, InsertPolicy insertPolicy = InsertFloating, QWidget* position = 0);
   void removeTab(QWidget* widget);
@@ -32,6 +31,8 @@ private:
   QList<QTabWindow*> windows;
 
 private:
+  void addTab(const QString& title, QWidget* widget, QTabContainer* position, InsertPolicy insertPolicy);
+  void moveTab(const QString& title, QWidget* widget, QTabContainer* position, InsertPolicy insertPolicy);
   void removeWindow(QTabWindow* window);
 
   friend class QTabDrawer;
@@ -63,6 +64,7 @@ private:
 
   friend class QTabContainer;
   friend class QTabDrawer;
+  friend class QTabFramework;
 };
 
 class QTabContainer : public QTabWidget
@@ -93,7 +95,6 @@ private:
   bool dragInProgress;
   QPoint dragStartPosition;
   QWidget* dragWidget;
-  QString dragWidgetTabText;
 
 private:
   QRect findDropRect(const QPoint& globalPos, QTabFramework::InsertPolicy& insertPolicy, QTabContainer*& position);

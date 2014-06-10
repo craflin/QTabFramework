@@ -69,71 +69,8 @@ void QTabDrawer::mouseReleaseEvent(QMouseEvent* event)
           QTabFramework::InsertPolicy insertPolicy;
           QTabContainer* position;
           QRect rect = findDropRect(event->globalPos(), insertPolicy, position);
-          tabContainer->removeTab(draggedIndex);
-          tabContainer->tabWindow->tabFramework->addTab(dragWidgetTabText, dragWidget, position, insertPolicy);
-          
-          if(tabContainer->count() == 0)
-          {
-            QObject* parent = tabContainer->parent();
-            QTabSplitter* splitter = dynamic_cast<QTabSplitter*>(parent);
-            if(splitter)
-            {
-              if(splitter->count() == 2)
-              { // the splitter will be pointless, remove it
-                QWidget* sibling = splitter->widget(0);
-                if(sibling == tabContainer)
-                  sibling = splitter->widget(1);
-                sibling->setParent(NULL);
-
-                QTabSplitter* parentSplitter = dynamic_cast<QTabSplitter*>(splitter->parent());
-                if(parentSplitter)
-                {
-                  QList<int> sizes = parentSplitter->sizes();
-                  int splitterIndex = parentSplitter->indexOf(splitter);
-                  splitter->setParent(NULL);
-                  QTabSplitter* siblingSplitter = dynamic_cast<QTabSplitter*>(sibling);
-                  if(!siblingSplitter || siblingSplitter->orientation() != parentSplitter->orientation())
-                  {
-                    parentSplitter->insertWidget(splitterIndex, sibling);
-                    parentSplitter->setSizes(sizes);
-                  }
-                  else
-                  {
-                    QList<int> sibSizes = siblingSplitter->sizes();
-                    while(siblingSplitter->count() > 0)
-                    {
-                      QWidget* widget = siblingSplitter->widget(0);
-                      widget->setParent(NULL);
-                      parentSplitter->insertWidget(splitterIndex, widget);
-                      sizes.insert(splitterIndex, sibSizes[0]);
-                      sibSizes.removeFirst();
-                      ++splitterIndex;
-                    }
-                    delete siblingSplitter;
-                  }
-                  delete splitter;
-                }
-                else
-                {
-                  splitter->setParent(NULL);
-                  tabContainer->tabWindow->setCentralWidget(sibling);
-                  delete splitter;
-                }
-              }
-              else
-              {
-                // remove container
-                int splitCount = splitter->count();
-                tabContainer->setParent(NULL);
-                delete tabContainer;
-                Q_ASSERT(splitter->count() == splitCount - 1);
-              }
-            }
-            else
-            {
-              tabContainer->tabWindow->tabFramework->removeWindow(tabContainer->tabWindow);
-            }
-          }
+          QString title = tabContainer->tabText(draggedIndex);
+          tabContainer->tabWindow->tabFramework->moveTab(title, dragWidget, position, insertPolicy);
         }
       }
     }
@@ -151,7 +88,6 @@ void QTabDrawer::mouseMoveEvent(QMouseEvent* event)
       {
           dragInProgress = true;
           dragWidget = tabContainer->widget(pressedIndex);
-          dragWidgetTabText = tabContainer->tabText(pressedIndex);
           //qDebug("start drag: %s", dragWidgetTabText.toAscii().constData());
       }
   }
@@ -433,6 +369,77 @@ void QTabFramework::addTab(const QString& title, QWidget* widget, QTabContainer*
     else
     {
       Q_ASSERT(false);
+    }
+  }
+}
+
+void QTabFramework::moveTab(const QString& title, QWidget* widget, QTabContainer* position, InsertPolicy insertPolicy)
+{
+  QTabContainer* tabContainer = dynamic_cast<QTabContainer*>(widget->parent()->parent());
+  int movedIndex = tabContainer->indexOf(widget);
+  tabContainer->removeTab(movedIndex);
+  tabContainer->tabWindow->tabFramework->addTab(title, widget, position, insertPolicy);
+
+  if(tabContainer->count() == 0)
+  {
+    QObject* parent = tabContainer->parent();
+    QTabSplitter* splitter = dynamic_cast<QTabSplitter*>(parent);
+    if(splitter)
+    {
+      if(splitter->count() == 2)
+      { // the splitter will be pointless, remove it
+        QWidget* sibling = splitter->widget(0);
+        if(sibling == tabContainer)
+          sibling = splitter->widget(1);
+        sibling->setParent(NULL);
+
+        QTabSplitter* parentSplitter = dynamic_cast<QTabSplitter*>(splitter->parent());
+        if(parentSplitter)
+        {
+          QList<int> sizes = parentSplitter->sizes();
+          int splitterIndex = parentSplitter->indexOf(splitter);
+          splitter->setParent(NULL);
+          QTabSplitter* siblingSplitter = dynamic_cast<QTabSplitter*>(sibling);
+          if(!siblingSplitter || siblingSplitter->orientation() != parentSplitter->orientation())
+          {
+            parentSplitter->insertWidget(splitterIndex, sibling);
+            parentSplitter->setSizes(sizes);
+          }
+          else
+          {
+            QList<int> sibSizes = siblingSplitter->sizes();
+            while(siblingSplitter->count() > 0)
+            {
+              QWidget* widget = siblingSplitter->widget(0);
+              widget->setParent(NULL);
+              parentSplitter->insertWidget(splitterIndex, widget);
+              sizes.insert(splitterIndex, sibSizes[0]);
+              sibSizes.removeFirst();
+              ++splitterIndex;
+            }
+            delete siblingSplitter;
+          }
+          delete splitter;
+        }
+        else
+        {
+          splitter->setParent(NULL);
+          tabContainer->tabWindow->setCentralWidget(sibling);
+          delete splitter;
+        }
+      }
+      else
+      {
+        // remove container
+        int splitCount = splitter->count();
+        tabContainer->setParent(NULL);
+        delete tabContainer;
+        Q_ASSERT(splitter->count() == splitCount - 1);
+      }
+    }
+    else
+    {
+      tabContainer->tabWindow->tabFramework->removeWindow(tabContainer->tabWindow);
     }
   }
 }
