@@ -1,9 +1,6 @@
 
 #include "stdafx.h"
 
-
-
-
 int main(int argc, char **argv)
 {
   QApplication app(argc, argv);
@@ -14,6 +11,8 @@ int main(int argc, char **argv)
    tabFramework.addTab("Test2.cpp", new QLabel("Test2.cpp"), QTabFramework::InsertOnTop, firstWidget);
    tabFramework.addTab("Solution Explorer", new QLabel("Solution Explorer"), QTabFramework::InsertLeft, firstWidget);
    tabFramework.addTab("Output", new QLabel("Output"), QTabFramework::InsertBottom, firstWidget);
+
+   //tabFramework.addTab("Test3.cpp", new QLabel("Test3.cpp"));
 
   //QMainWindow mainWindow;
   //QTabBar* tabBar = new QTabBar();

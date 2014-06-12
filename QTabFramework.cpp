@@ -10,32 +10,31 @@ public:
     setAttribute(Qt::WA_TransparentForMouseEvents);
   }
 
-  void paintEvent(QPaintEvent *event) {
-      QPainter painter(this);
-      //painter.setRenderHint(QPainter::Antialiasing);
-      painter.setBrush(QBrush(QColor(88, 88, 88, 88)));
-      painter.drawRect(rect());
-      //painter.setPen(QPen(Qt::red));
-      //painter.drawLine(width()/8, height()/8, 7*width()/8, 7*height()/8);
-      //painter.drawLine(width()/8, 7*height()/8, 7*width()/8, height()/8);
+private:
+  void paintEvent(QPaintEvent *event)
+  {
+    QPainter painter(this);
+    painter.setPen(Qt::NoPen);
+    painter.setBrush(QBrush(QColor(88, 88, 88, 88)));
+    painter.drawRect(rect());
   }
 };
 
-QTabDrawer::QTabDrawer(QTabContainer* tabContainer) : QTabBar(tabContainer), tabContainer(tabContainer), pressedIndex(-1), dragInProgress(false) {}
+QTabDrawer::QTabDrawer(QTabContainer* tabContainer) : QTabBar(tabContainer), tabContainer(tabContainer), pressedIndex(-1) {}
 
 void QTabDrawer::mousePressEvent(QMouseEvent* event)
 {
-    if (event->button() != Qt::LeftButton)
-    {
-        event->ignore();
-        return;
-    }
+  if (event->button() != Qt::LeftButton)
+  {
+    event->ignore();
+    return;
+  }
 
-    pressedIndex = tabAt(event->pos());
-    if(pressedIndex >= 0)
-    {
-      dragStartPosition = event->pos();
-    }
+  pressedIndex = tabAt(event->pos());
+  if(pressedIndex >= 0)
+  {
+    dragStartPosition = event->pos();
+  }
 
   QTabBar::mousePressEvent(event);
 }
@@ -48,89 +47,36 @@ void QTabDrawer::mouseReleaseEvent(QMouseEvent* event)
       return;
   }
 
-  if(dragInProgress)
-  {
-    int draggedIndex = pressedIndex;
-    pressedIndex = -1;
-    dragInProgress = false;
-    tabContainer->tabWindow->setDropOverlayRect(QRect());
-
-    if(rect().contains(event->pos()))
-      QTabBar::mouseReleaseEvent(event);
-    else
-    {
-      QTabBar::mouseReleaseEvent(event);
-
-      if(draggedIndex >= 0)
-      {
-        draggedIndex = tabContainer->indexOf(dragWidget); // index of the widget may change while its being dragged
-        if(draggedIndex >= 0)
-        {
-          QTabFramework::InsertPolicy insertPolicy;
-          QTabContainer* position;
-          QRect rect = findDropRect(event->globalPos(), insertPolicy, position);
-          QString title = tabContainer->tabText(draggedIndex);
-          tabContainer->tabWindow->tabFramework->moveTab(title, dragWidget, position, insertPolicy);
-        }
-      }
-    }
-  }
-  else
-    QTabBar::mouseReleaseEvent(event);
+  QTabBar::mouseReleaseEvent(event);
 }
 
 void QTabDrawer::mouseMoveEvent(QMouseEvent* event)
 {
   // Start drag
-  if (!dragInProgress && pressedIndex >= 0)
+  if(pressedIndex >= 0)
   {
-      if ((event->pos() - dragStartPosition).manhattanLength() > QApplication::startDragDistance())
+    if ((event->pos() - dragStartPosition).manhattanLength() > QApplication::startDragDistance())
+    {
+      QWidget* dragWidget = tabContainer->widget(pressedIndex);
+
+      QMimeData* mimeData = new QMimeData;
+      mimeData->setData("application/x-tabwidget", QByteArray());
+
+      QDrag* drag = new QDrag(dragWidget);
+      drag->setMimeData(mimeData);
+      Qt::DropAction ret = drag->exec(Qt::MoveAction);
+      if(ret != Qt::MoveAction)
       {
-          dragInProgress = true;
-          dragWidget = tabContainer->widget(pressedIndex);
-          //qDebug("start drag: %s", dragWidgetTabText.toAscii().constData());
+        tabContainer->tabWindow->tabFramework->moveTab(dragWidget, tabContainer, QTabFramework::InsertFloating);
       }
-  }
+      //delete drag ?
 
-  if(dragInProgress)
-  {
-    if(rect().contains(event->pos()))
-    {
-      QTabBar::mouseMoveEvent(event);
-      tabContainer->tabWindow->setDropOverlayRect(QRect());
-    }
-    else
-    {
-      QTabBar::mouseMoveEvent(event);
-
-      QTabFramework::InsertPolicy insertPolicy;
-      QTabContainer* position;
-      QRect rect = findDropRect(event->globalPos(), insertPolicy, position);
-
-      tabContainer->tabWindow->setDropOverlayRect(rect);
+      pressedIndex = -1;
+      return;
     }
   }
   else
     QTabBar::mouseMoveEvent(event);
-}
-
-QRect QTabDrawer::findDropRect(const QPoint& globalPos, QTabFramework::InsertPolicy& insertPolicy, QTabContainer*& position)
-{
-  QRect rect = tabContainer->findDropRect(globalPos, insertPolicy);
-  position = tabContainer;
-  if(insertPolicy == QTabFramework::InsertOnTop)
-  {
-    insertPolicy = QTabFramework::InsertFloating;
-    return QRect();
-  }
-  else if(insertPolicy == QTabFramework::InsertFloating)
-  {
-    rect = tabContainer->tabWindow->findDropRect(globalPos, insertPolicy, position);
-    //if(insertPolicy == QTabFramework::InsertFloating)
-    //  tabContainer->tabWindow->tabFramework->findDropRect(event->pos(), insertPolicy);
-  
-  }
-  return rect;
 }
 
 QTabSplitter::QTabSplitter(Qt::Orientation orientation, QWidget* parent) : QSplitter(orientation, parent)
@@ -138,44 +84,19 @@ QTabSplitter::QTabSplitter(Qt::Orientation orientation, QWidget* parent) : QSpli
   setChildrenCollapsible(false);
 }
 
-QRect QTabSplitter::findDropRect(const QPoint& globalPos, QTabFramework::InsertPolicy& insertPolicy, QTabContainer*& position)
-{
-  QPoint pos = mapFromGlobal(globalPos);
-  for(int i = 0, count = this->count(); i < count; ++i)
-  {
-    QWidget* widget = this->widget(i);
-    if(widget->geometry().contains(pos))
-    {
-      QTabContainer* container = dynamic_cast<QTabContainer*>(widget);
-      if(container)
-      {
-        position = container;
-        return container->findDropRect(globalPos, insertPolicy);
-      }
-      else
-      {
-        QTabSplitter* splitter = dynamic_cast<QTabSplitter*>(widget);
-        return splitter->findDropRect(globalPos, insertPolicy, position);
-      }
-    }
-  }
-  insertPolicy = QTabFramework::InsertFloating;
-  position = 0;
-  return QRect();
-}
-
 QTabContainer::QTabContainer(QWidget* parent, QTabWindow* tabWindow) : QTabWidget(parent), tabWindow(tabWindow)
 {
   QTabDrawer* drawer = new QTabDrawer(this);
-  drawer->setMovable(true);
+  //drawer->setMovable(true);
   drawer->setTabsClosable(true);
   drawer->setUsesScrollButtons(true);
   drawer->setElideMode(Qt::ElideRight);
   setTabBar(drawer);
   setDocumentMode(true);
+  setAcceptDrops(true);
 }
 
-QRect QTabContainer::findDropRect(const QPoint& globalPos, QTabFramework::InsertPolicy& insertPolicy)
+QRect QTabContainer::findDropRect(const QPoint& globalPos, QTabFramework::InsertPolicy& insertPolicy, QRect& tabRectResult)
 {
   QPoint pos = mapFromGlobal(globalPos);
   QRect containerRect = rect();
@@ -186,6 +107,18 @@ QRect QTabContainer::findDropRect(const QPoint& globalPos, QTabFramework::Insert
     {
       insertPolicy = QTabFramework::InsertOnTop;
       result = containerRect;
+      QTabBar* tabBar = this->tabBar();
+      for(int i = 0, count = tabBar->count(); i < count; ++i)
+      {
+        QRect tabRect = tabBar->tabRect(i);
+        if(tabRect.contains(pos))
+        {
+          tabRectResult = tabRect;
+          tabRectResult.setRight(tabRect.left() + tabRect.width() / 2);
+          tabRectResult.translate(tabBar->mapToGlobal(QPoint(0, 0)));
+          break;
+        }
+      }
     }
     else if(pos.x() < containerRect.x() + containerRect.width() / 3)
     {
@@ -222,40 +155,126 @@ QRect QTabContainer::findDropRect(const QPoint& globalPos, QTabFramework::Insert
   return result;
 }
 
-QRect QTabWindow::findDropRect(const QPoint& globalPos, QTabFramework::InsertPolicy& insertPolicy, QTabContainer*& position)
+void QTabContainer::dragEnterEvent(QDragEnterEvent* event)
 {
-  QTabContainer* container = dynamic_cast<QTabContainer*>(centralWidget());
-  if(container)
+  if(event->mimeData()->hasFormat("application/x-tabwidget"))
   {
-    position = container;
-    return container->findDropRect(globalPos, insertPolicy);
+    QTabContainer* sourceTabContainer = dynamic_cast<QTabContainer*>(event->source()->parent()->parent());
+    QTabFramework::InsertPolicy insertPolicy;
+    QRect tabRect;
+    QRect rect = findDropRect(mapToGlobal(event->pos()), insertPolicy, tabRect);
+    //if(sourceTabContainer == this && insertPolicy == QTabFramework::InsertOnTop && !tabRect.isValid())
+    //{
+    //  tabWindow->setDropOverlayRect(QRect());
+    //  event->acceptProposedAction();
+    //}
+    //else
+    {
+      tabWindow->setDropOverlayRect(rect, tabRect);
+      event->acceptProposedAction();
+    }
+    return;
   }
-  else
-  {
-    QTabSplitter* splitter = dynamic_cast<QTabSplitter*>(centralWidget());
-    if(splitter)
-      return splitter->findDropRect(globalPos, insertPolicy, position);
-  }
-  insertPolicy = QTabFramework::InsertFloating;
-  position = 0;
-  return QRect();
+  event->ignore();
 }
 
-void QTabWindow::setDropOverlayRect(const QRect& globalRect)
+void QTabContainer::dragLeaveEvent(QDragLeaveEvent* event)
+{
+  tabWindow->setDropOverlayRect(QRect());
+}
+
+void QTabContainer::dragMoveEvent(QDragMoveEvent* event)
+{
+  if(event->mimeData()->hasFormat("application/x-tabwidget"))
+  {
+    QTabContainer* sourceTabContainer = dynamic_cast<QTabContainer*>(event->source()->parent()->parent());
+    QTabFramework::InsertPolicy insertPolicy;
+    QRect tabRect;
+    QRect rect = findDropRect(mapToGlobal(event->pos()), insertPolicy, tabRect);
+    //if(sourceTabContainer == this && insertPolicy == QTabFramework::InsertOnTop && !tabRect.isValid())
+    //{
+    //  tabWindow->setDropOverlayRect(QRect());
+    //  event->acceptProposedAction();
+    //}
+    //else
+    {
+      tabWindow->setDropOverlayRect(rect, tabRect);
+      event->acceptProposedAction();
+    }
+    return;
+  }
+  event->ignore();
+}
+
+void QTabContainer::dropEvent(QDropEvent* event)
+{
+  tabWindow->setDropOverlayRect(QRect());
+
+  if(event->mimeData()->hasFormat("application/x-tabwidget"))
+  {
+    QTabContainer* sourceTabContainer = dynamic_cast<QTabContainer*>(event->source()->parent()->parent());
+    QTabFramework::InsertPolicy insertPolicy;
+    QRect tabRect;
+    QRect rect = findDropRect(mapToGlobal(event->pos()), insertPolicy, tabRect);
+    if(sourceTabContainer == this && insertPolicy == QTabFramework::InsertOnTop && !tabRect.isValid())
+    {
+      tabWindow->tabFramework->moveTab(event->source(), this, QTabFramework::InsertFloating);
+      event->acceptProposedAction();
+    }
+    else
+    {
+      tabWindow->tabFramework->moveTab(event->source(), this, insertPolicy);
+      event->acceptProposedAction();
+    }
+    tabWindow->setDropOverlayRect(QRect());
+    return;
+  }
+  event->ignore();
+}
+
+void QTabWindow::setDropOverlayRect(const QRect& globalRect, const QRect& globalTabRect)
 {
   if(globalRect.isValid())
   {
-    QRect rect = globalRect.translated(mapFromGlobal(QPoint(0, 0)));
+    
     if(!overlayWidget)
     {
       overlayWidget = new QTabDropOverlay(this);
       overlayWidget->show();
     }
-    overlayWidget->setGeometry(rect);
+    if(globalTabRect.isValid())
+    {
+      QRect wrect = globalRect;
+      wrect.setTop(globalTabRect.bottom() + 1);
+      QRect rect = wrect.translated(mapFromGlobal(QPoint(0, 0)));
+      overlayWidget->setGeometry(rect);
+      if(!overlayWidgetTab)
+      {
+        overlayWidgetTab = new QTabDropOverlay(this);
+        overlayWidgetTab->show();
+      }
+      QRect tabRect = globalTabRect.translated(mapFromGlobal(QPoint(0, 0)));
+      overlayWidgetTab->setGeometry(tabRect);
+    }
+    else
+    {
+      QRect rect = globalRect.translated(mapFromGlobal(QPoint(0, 0)));
+      overlayWidget->setGeometry(rect);
+      if(overlayWidgetTab)
+      {
+        overlayWidgetTab->deleteLater();
+        overlayWidgetTab = 0;
+      }
+    }
   }
   else
   {
-    delete overlayWidget;
+    if(overlayWidgetTab)
+    {
+      overlayWidgetTab->deleteLater();
+      overlayWidgetTab = NULL;
+    }
+    overlayWidget->deleteLater();
     overlayWidget = NULL;
   }
 }
@@ -373,10 +392,11 @@ void QTabFramework::addTab(const QString& title, QWidget* widget, QTabContainer*
   }
 }
 
-void QTabFramework::moveTab(const QString& title, QWidget* widget, QTabContainer* position, InsertPolicy insertPolicy)
+void QTabFramework::moveTab(QWidget* widget, QTabContainer* position, InsertPolicy insertPolicy)
 {
   QTabContainer* tabContainer = dynamic_cast<QTabContainer*>(widget->parent()->parent());
   int movedIndex = tabContainer->indexOf(widget);
+  QString title = tabContainer->tabText(movedIndex);
   tabContainer->removeTab(movedIndex);
   tabContainer->tabWindow->tabFramework->addTab(title, widget, position, insertPolicy);
 
