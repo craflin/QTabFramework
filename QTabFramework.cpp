@@ -67,7 +67,7 @@ void QTabDrawer::mouseMoveEvent(QMouseEvent* event)
       Qt::DropAction ret = drag->exec(Qt::MoveAction);
       if(ret != Qt::MoveAction)
       {
-        tabContainer->tabWindow->tabFramework->moveTab(dragWidget, tabContainer, QTabFramework::InsertFloating);
+        tabContainer->tabWindow->tabFramework->moveTab(dragWidget, tabContainer, QTabFramework::InsertFloating, -1);
       }
       //delete drag ?
 
@@ -96,16 +96,17 @@ QTabContainer::QTabContainer(QWidget* parent, QTabWindow* tabWindow) : QTabWidge
   setAcceptDrops(true);
 }
 
-QRect QTabContainer::findDropRect(const QPoint& globalPos, QTabFramework::InsertPolicy& insertPolicy, QRect& tabRectResult)
+QRect QTabContainer::findDropRect(const QPoint& globalPos, QTabFramework::InsertPolicy& insertPolicy, QRect& tabRectResult, int& tabIndex)
 {
   QPoint pos = mapFromGlobal(globalPos);
   QRect containerRect = rect();
   QRect result;
+  tabIndex = -1;
   if(containerRect.contains(pos))
   {
     if(tabBar()->geometry().contains(pos))
     {
-      insertPolicy = QTabFramework::InsertOnTop;
+      insertPolicy = QTabFramework::Insert;
       result = containerRect;
       QTabBar* tabBar = this->tabBar();
       for(int i = 0, count = tabBar->count(); i < count; ++i)
@@ -116,6 +117,7 @@ QRect QTabContainer::findDropRect(const QPoint& globalPos, QTabFramework::Insert
           tabRectResult = tabRect;
           tabRectResult.setRight(tabRect.left() + tabRect.width() / 2);
           tabRectResult.translate(tabBar->mapToGlobal(QPoint(0, 0)));
+          tabIndex = i;
           break;
         }
       }
@@ -162,13 +164,16 @@ void QTabContainer::dragEnterEvent(QDragEnterEvent* event)
     QTabContainer* sourceTabContainer = dynamic_cast<QTabContainer*>(event->source()->parent()->parent());
     QTabFramework::InsertPolicy insertPolicy;
     QRect tabRect;
-    QRect rect = findDropRect(mapToGlobal(event->pos()), insertPolicy, tabRect);
-    //if(sourceTabContainer == this && insertPolicy == QTabFramework::InsertOnTop && !tabRect.isValid())
-    //{
-    //  tabWindow->setDropOverlayRect(QRect());
-    //  event->acceptProposedAction();
-    //}
-    //else
+    int tabIndex;
+    QRect rect = findDropRect(mapToGlobal(event->pos()), insertPolicy, tabRect, tabIndex);
+    if(sourceTabContainer == this && sourceTabContainer->count() == 1)
+      tabRect = QRect();
+    if(sourceTabContainer == this && (insertPolicy == QTabFramework::InsertOnTop || (sourceTabContainer->count() == 1 && insertPolicy != QTabFramework::Insert)) && !tabRect.isValid())
+    {
+      tabWindow->setDropOverlayRect(QRect());
+      event->acceptProposedAction();
+    }
+    else
     {
       tabWindow->setDropOverlayRect(rect, tabRect);
       event->acceptProposedAction();
@@ -190,13 +195,16 @@ void QTabContainer::dragMoveEvent(QDragMoveEvent* event)
     QTabContainer* sourceTabContainer = dynamic_cast<QTabContainer*>(event->source()->parent()->parent());
     QTabFramework::InsertPolicy insertPolicy;
     QRect tabRect;
-    QRect rect = findDropRect(mapToGlobal(event->pos()), insertPolicy, tabRect);
-    //if(sourceTabContainer == this && insertPolicy == QTabFramework::InsertOnTop && !tabRect.isValid())
-    //{
-    //  tabWindow->setDropOverlayRect(QRect());
-    //  event->acceptProposedAction();
-    //}
-    //else
+    int tabIndex;
+    QRect rect = findDropRect(mapToGlobal(event->pos()), insertPolicy, tabRect, tabIndex);
+    if(sourceTabContainer == this && sourceTabContainer->count() == 1)
+      tabRect = QRect();
+    if(sourceTabContainer == this && (insertPolicy == QTabFramework::InsertOnTop || (sourceTabContainer->count() == 1 && insertPolicy != QTabFramework::Insert)) && !tabRect.isValid())
+    {
+      tabWindow->setDropOverlayRect(QRect());
+      event->acceptProposedAction();
+    }
+    else
     {
       tabWindow->setDropOverlayRect(rect, tabRect);
       event->acceptProposedAction();
@@ -215,15 +223,18 @@ void QTabContainer::dropEvent(QDropEvent* event)
     QTabContainer* sourceTabContainer = dynamic_cast<QTabContainer*>(event->source()->parent()->parent());
     QTabFramework::InsertPolicy insertPolicy;
     QRect tabRect;
-    QRect rect = findDropRect(mapToGlobal(event->pos()), insertPolicy, tabRect);
-    if(sourceTabContainer == this && insertPolicy == QTabFramework::InsertOnTop && !tabRect.isValid())
+    int tabIndex;
+    QRect rect = findDropRect(mapToGlobal(event->pos()), insertPolicy, tabRect, tabIndex);
+    if(sourceTabContainer == this && sourceTabContainer->count() == 1)
+      tabRect = QRect();
+    if(sourceTabContainer == this && (insertPolicy == QTabFramework::InsertOnTop || (sourceTabContainer->count() == 1  && insertPolicy != QTabFramework::Insert)) && !tabRect.isValid())
     {
-      tabWindow->tabFramework->moveTab(event->source(), this, QTabFramework::InsertFloating);
+      tabWindow->tabFramework->moveTab(event->source(), this, QTabFramework::InsertFloating, tabIndex);
       event->acceptProposedAction();
     }
     else
     {
-      tabWindow->tabFramework->moveTab(event->source(), this, insertPolicy);
+      tabWindow->tabFramework->moveTab(event->source(), this, insertPolicy, tabIndex);
       event->acceptProposedAction();
     }
     tabWindow->setDropOverlayRect(QRect());
@@ -287,14 +298,12 @@ QTabFramework::~QTabFramework()
 void QTabFramework::addTab(const QString& title, QWidget* widget, InsertPolicy insertPolicy, QWidget* position)
 {
   if(!position)
-    addTab(title, widget, NULL, insertPolicy);
+    addTab(title, widget, NULL, insertPolicy, -1);
   else
-  {
-    addTab(title, widget, dynamic_cast<QTabContainer*>(position->parent()->parent()), insertPolicy);
-  }
+    addTab(title, widget, dynamic_cast<QTabContainer*>(position->parent()->parent()), insertPolicy, -1);
 }
 
-void QTabFramework::addTab(const QString& title, QWidget* widget, QTabContainer* container, InsertPolicy insertPolicy)
+void QTabFramework::addTab(const QString& title, QWidget* widget, QTabContainer* container, InsertPolicy insertPolicy, int tabIndex)
 {
   bool createWindow = !container || insertPolicy == InsertFloating;
   if(createWindow)
@@ -308,10 +317,15 @@ void QTabFramework::addTab(const QString& title, QWidget* widget, QTabContainer*
   }
   else
   {
-    if(insertPolicy == InsertPolicy::InsertOnTop)
+    if(insertPolicy == InsertPolicy::InsertOnTop || (insertPolicy == InsertPolicy::Insert && tabIndex < 0))
     {
-      int index = container->addTab(widget, title);
-      container->setCurrentIndex(index);
+      insertPolicy = InsertPolicy::Insert;
+      tabIndex = container->count();
+    }
+    if(insertPolicy == InsertPolicy::Insert)
+    {
+      container->insertTab(tabIndex, widget, title);
+      container->setCurrentIndex(tabIndex);
     }
     else if(insertPolicy == InsertPolicy::InsertLeft || insertPolicy == InsertPolicy::InsertRight ||
       insertPolicy == InsertPolicy::InsertTop || insertPolicy == InsertPolicy::InsertBottom)
@@ -392,13 +406,13 @@ void QTabFramework::addTab(const QString& title, QWidget* widget, QTabContainer*
   }
 }
 
-void QTabFramework::moveTab(QWidget* widget, QTabContainer* position, InsertPolicy insertPolicy)
+void QTabFramework::moveTab(QWidget* widget, QTabContainer* position, InsertPolicy insertPolicy, int tabIndex)
 {
   QTabContainer* tabContainer = dynamic_cast<QTabContainer*>(widget->parent()->parent());
   int movedIndex = tabContainer->indexOf(widget);
   QString title = tabContainer->tabText(movedIndex);
   tabContainer->removeTab(movedIndex);
-  tabContainer->tabWindow->tabFramework->addTab(title, widget, position, insertPolicy);
+  tabContainer->tabWindow->tabFramework->addTab(title, widget, position, insertPolicy, tabIndex);
 
   if(tabContainer->count() == 0)
   {

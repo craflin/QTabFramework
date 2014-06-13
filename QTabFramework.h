@@ -11,6 +11,7 @@ public:
   {
     InsertFloating,
     InsertOnTop,
+    Insert,
     InsertLeft,
     InsertRight,
     InsertTop,
@@ -31,8 +32,8 @@ private:
   QList<QTabWindow*> windows;
 
 private:
-  void addTab(const QString& title, QWidget* widget, QTabContainer* position, InsertPolicy insertPolicy);
-  void moveTab(QWidget* widget, QTabContainer* position, InsertPolicy insertPolicy);
+  void addTab(const QString& title, QWidget* widget, QTabContainer* position, InsertPolicy insertPolicy, int tabIndex);
+  void moveTab(QWidget* widget, QTabContainer* position, InsertPolicy insertPolicy, int tabIndex);
   void removeWindow(QTabWindow* window);
 
   friend class QTabDrawer;
@@ -75,7 +76,7 @@ private:
   QTabWindow* tabWindow;
 
 private:
-  QRect findDropRect(const QPoint& globalPos, QTabFramework::InsertPolicy& insertPolicy, QRect& tabRect);
+  QRect findDropRect(const QPoint& globalPos, QTabFramework::InsertPolicy& insertPolicy, QRect& tabRect, int& tabIndex);
 
   virtual void dragEnterEvent(QDragEnterEvent* event);
   virtual void dragLeaveEvent(QDragLeaveEvent* event);
