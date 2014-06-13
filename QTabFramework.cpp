@@ -498,6 +498,7 @@ void QTabFramework::removeTab(QWidget* widget)
   QTabContainer* tabContainer = dynamic_cast<QTabContainer*>(widget->parent()->parent());
   int movedIndex = tabContainer->indexOf(widget);
   tabContainer->removeTab(movedIndex);
+  widget->setParent(NULL);
   removeContainerIfEmpty(tabContainer);
   hiddenTabs.remove(widget);
 }
@@ -509,6 +510,7 @@ void QTabFramework::hideTab(QWidget* widget)
   QTabContainer* tabContainer = dynamic_cast<QTabContainer*>(widget->parent()->parent());
   int movedIndex = tabContainer->indexOf(widget);
   tabContainer->removeTab(movedIndex);
+  widget->setParent(NULL);
   removeContainerIfEmpty(tabContainer);
   hiddenTabs.insert(widget);
 }
