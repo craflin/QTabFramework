@@ -5,14 +5,20 @@ int main(int argc, char **argv)
 {
   QApplication app(argc, argv);
 
-   QTabFramework tabFramework;
-   QLabel* firstWidget = new QLabel("Test.cpp");
-   tabFramework.addTab("Test.cpp", firstWidget);
-   tabFramework.addTab("Test2.cpp", new QLabel("Test2.cpp"), QTabFramework::InsertOnTop, firstWidget);
-   tabFramework.addTab("Solution Explorer", new QLabel("Solution Explorer"), QTabFramework::InsertLeft, firstWidget);
-   tabFramework.addTab("Output", new QLabel("Output"), QTabFramework::InsertBottom, firstWidget);
+  QTabFramework tabFramework;
+  QLabel* testWidget1 = new QLabel("Test.cpp");
+  testWidget1->setWindowTitle("Test.cpp");
+  QLabel* testWidget2 = new QLabel("Test2.cpp");
+  testWidget2->setWindowTitle("Test2.cpp");
+  QLabel* testWidget3 = new QLabel("Solution Explorer");
+  testWidget3->setWindowTitle("Solution Explorer");
+  QLabel* testWidget4 = new QLabel("Output");
+  testWidget4->setWindowTitle("Output");
 
-   //tabFramework.addTab("Test3.cpp", new QLabel("Test3.cpp"));
+  tabFramework.addTab(testWidget1);
+  tabFramework.addTab(testWidget2, QTabFramework::InsertOnTop, testWidget1);
+  tabFramework.addTab(testWidget3, QTabFramework::InsertLeft, testWidget1);
+  tabFramework.addTab(testWidget4, QTabFramework::InsertBottom, testWidget1);
 
   //QMainWindow mainWindow;
   //QTabBar* tabBar = new QTabBar();

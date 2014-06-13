@@ -27,7 +27,9 @@ targets = {
     
     qtRessourceFiles = {}
     qtRccFiles = {}
-    qtMocFiles = {}
+    qtMocFiles = {
+      "QTabFramework.h"
+    }
     files += qtFiles
     
     if(platform == "Linux") {

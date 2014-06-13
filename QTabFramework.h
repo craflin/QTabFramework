@@ -21,19 +21,22 @@ public:
 public:
   ~QTabFramework();
 
-  void addTab(const QString& title, QWidget* widget, InsertPolicy insertPolicy = InsertFloating, QWidget* position = 0);
+  void addTab(QWidget* widget, InsertPolicy insertPolicy = InsertFloating, QWidget* position = 0);
   void moveTab(QWidget* widget, InsertPolicy insertPolicy = InsertFloating, QWidget* position = 0);
   void removeTab(QWidget* widget);
+  void hideTab(QWidget* widget);
 
   void saveLayout();
   void loadLayout();
 
 private:
   QList<QTabWindow*> windows;
+  QSet<QWidget*> hiddenTabs;
 
 private:
-  void addTab(const QString& title, QWidget* widget, QTabContainer* position, InsertPolicy insertPolicy, int tabIndex);
+  void addTab(QWidget* widget, QTabContainer* position, InsertPolicy insertPolicy, int tabIndex);
   void moveTab(QWidget* widget, QTabContainer* position, InsertPolicy insertPolicy, int tabIndex);
+  void removeContainerIfEmpty(QTabContainer* tabContainer);
   void removeWindow(QTabWindow* window);
 
   friend class QTabDrawer;
@@ -91,6 +94,8 @@ private:
 
 class QTabDrawer : public QTabBar
 {
+  Q_OBJECT
+
 public:
   QTabDrawer(QTabContainer* tabContainer);
 
@@ -103,6 +108,9 @@ protected:
   virtual void mousePressEvent(QMouseEvent* event);
   virtual void mouseReleaseEvent(QMouseEvent* event);
   virtual void mouseMoveEvent(QMouseEvent* event);
+
+private slots:
+  void closeTab(int index);
 
   //friend class QTabContainer;
 };

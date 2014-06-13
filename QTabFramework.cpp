@@ -20,7 +20,14 @@ private:
   }
 };
 
-QTabDrawer::QTabDrawer(QTabContainer* tabContainer) : QTabBar(tabContainer), tabContainer(tabContainer), pressedIndex(-1) {}
+QTabDrawer::QTabDrawer(QTabContainer* tabContainer) : QTabBar(tabContainer), tabContainer(tabContainer), pressedIndex(-1)
+{
+  //setMovable(true);
+  setTabsClosable(true);
+  setUsesScrollButtons(true);
+  setElideMode(Qt::ElideRight);
+  connect(this, SIGNAL(tabCloseRequested(int)), this, SLOT(closeTab(int)));
+}
 
 void QTabDrawer::mousePressEvent(QMouseEvent* event)
 {
@@ -79,6 +86,12 @@ void QTabDrawer::mouseMoveEvent(QMouseEvent* event)
     QTabBar::mouseMoveEvent(event);
 }
 
+void QTabDrawer::closeTab(int index)
+{
+  QWidget* widget = tabContainer->widget(index);
+  tabContainer->tabWindow->tabFramework->hideTab(widget);
+}
+
 QTabSplitter::QTabSplitter(Qt::Orientation orientation, QWidget* parent) : QSplitter(orientation, parent)
 {
   setChildrenCollapsible(false);
@@ -86,12 +99,7 @@ QTabSplitter::QTabSplitter(Qt::Orientation orientation, QWidget* parent) : QSpli
 
 QTabContainer::QTabContainer(QWidget* parent, QTabWindow* tabWindow) : QTabWidget(parent), tabWindow(tabWindow)
 {
-  QTabDrawer* drawer = new QTabDrawer(this);
-  //drawer->setMovable(true);
-  drawer->setTabsClosable(true);
-  drawer->setUsesScrollButtons(true);
-  drawer->setElideMode(Qt::ElideRight);
-  setTabBar(drawer);
+  setTabBar(new QTabDrawer(this));
   setDocumentMode(true);
   setAcceptDrops(true);
 }
@@ -292,26 +300,28 @@ void QTabWindow::setDropOverlayRect(const QRect& globalRect, const QRect& global
 
 QTabFramework::~QTabFramework()
 {
+  qDeleteAll(hiddenTabs);
   qDeleteAll(windows);
 }
 
-void QTabFramework::addTab(const QString& title, QWidget* widget, InsertPolicy insertPolicy, QWidget* position)
+void QTabFramework::addTab(QWidget* widget, InsertPolicy insertPolicy, QWidget* position)
 {
   if(!position)
-    addTab(title, widget, NULL, insertPolicy, -1);
+    addTab(widget, NULL, insertPolicy, -1);
   else
-    addTab(title, widget, dynamic_cast<QTabContainer*>(position->parent()->parent()), insertPolicy, -1);
+    addTab(widget, dynamic_cast<QTabContainer*>(position->parent()->parent()), insertPolicy, -1);
 }
 
-void QTabFramework::addTab(const QString& title, QWidget* widget, QTabContainer* container, InsertPolicy insertPolicy, int tabIndex)
+void QTabFramework::addTab(QWidget* widget, QTabContainer* container, InsertPolicy insertPolicy, int tabIndex)
 {
   bool createWindow = !container || insertPolicy == InsertFloating;
   if(createWindow)
   {
+    hiddenTabs.remove(widget);
     QTabWindow* tabWindow = new QTabWindow(this);
     windows.append(tabWindow);
     QTabContainer* container = new QTabContainer(tabWindow, tabWindow);
-    container->addTab(widget, title);
+    container->addTab(widget, widget->windowTitle());
     tabWindow->setCentralWidget(container);
     tabWindow->show();
   }
@@ -324,12 +334,14 @@ void QTabFramework::addTab(const QString& title, QWidget* widget, QTabContainer*
     }
     if(insertPolicy == InsertPolicy::Insert)
     {
-      container->insertTab(tabIndex, widget, title);
+      hiddenTabs.remove(widget);
+      container->insertTab(tabIndex, widget, widget->windowTitle());
       container->setCurrentIndex(tabIndex);
     }
     else if(insertPolicy == InsertPolicy::InsertLeft || insertPolicy == InsertPolicy::InsertRight ||
       insertPolicy == InsertPolicy::InsertTop || insertPolicy == InsertPolicy::InsertBottom)
     {
+      hiddenTabs.remove(widget);
       Qt::Orientation orientation = (insertPolicy == InsertPolicy::InsertLeft || insertPolicy == InsertPolicy::InsertRight) ? Qt::Horizontal : Qt::Vertical;
       int widthOrHeight = 0;
       if(orientation == Qt::Horizontal)
@@ -340,7 +352,7 @@ void QTabFramework::addTab(const QString& title, QWidget* widget, QTabContainer*
       if(splitter && splitter->orientation() == orientation)
       {
         QTabContainer* newContainer = new QTabContainer(splitter, container->tabWindow);
-        newContainer->addTab(widget, title);
+        newContainer->addTab(widget, widget->windowTitle());
         int containerIndex = splitter->indexOf(container);
         if(insertPolicy == InsertPolicy::InsertRight || insertPolicy == InsertPolicy::InsertBottom)
         {
@@ -370,7 +382,7 @@ void QTabFramework::addTab(const QString& title, QWidget* widget, QTabContainer*
           containerIndex = splitter->indexOf(container);
           sizes = splitter->sizes();
         }
-        newContainer->addTab(widget, title);
+        newContainer->addTab(widget, widget->windowTitle());
         container->setParent(NULL); // remove container from splitter or tabWindow
         if(insertPolicy == InsertPolicy::InsertRight || insertPolicy == InsertPolicy::InsertBottom)
         {
@@ -410,10 +422,13 @@ void QTabFramework::moveTab(QWidget* widget, QTabContainer* position, InsertPoli
 {
   QTabContainer* tabContainer = dynamic_cast<QTabContainer*>(widget->parent()->parent());
   int movedIndex = tabContainer->indexOf(widget);
-  QString title = tabContainer->tabText(movedIndex);
   tabContainer->removeTab(movedIndex);
-  tabContainer->tabWindow->tabFramework->addTab(title, widget, position, insertPolicy, tabIndex);
+  addTab(widget, position, insertPolicy, tabIndex);
+  removeContainerIfEmpty(tabContainer);
+}
 
+void QTabFramework::removeContainerIfEmpty(QTabContainer* tabContainer)
+{
   if(tabContainer->count() == 0)
   {
     QObject* parent = tabContainer->parent();
@@ -476,6 +491,26 @@ void QTabFramework::moveTab(QWidget* widget, QTabContainer* position, InsertPoli
       tabContainer->tabWindow->tabFramework->removeWindow(tabContainer->tabWindow);
     }
   }
+}
+
+void QTabFramework::removeTab(QWidget* widget)
+{
+  QTabContainer* tabContainer = dynamic_cast<QTabContainer*>(widget->parent()->parent());
+  int movedIndex = tabContainer->indexOf(widget);
+  tabContainer->removeTab(movedIndex);
+  removeContainerIfEmpty(tabContainer);
+  hiddenTabs.remove(widget);
+}
+
+void QTabFramework::hideTab(QWidget* widget)
+{
+  if(hiddenTabs.contains(widget))
+    return;
+  QTabContainer* tabContainer = dynamic_cast<QTabContainer*>(widget->parent()->parent());
+  int movedIndex = tabContainer->indexOf(widget);
+  tabContainer->removeTab(movedIndex);
+  removeContainerIfEmpty(tabContainer);
+  hiddenTabs.insert(widget);
 }
 
 void QTabFramework::removeWindow(QTabWindow* window)
