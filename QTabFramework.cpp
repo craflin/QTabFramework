@@ -112,7 +112,12 @@ QRect QTabContainer::findDropRect(const QPoint& globalPos, QTabFramework::Insert
   tabIndex = -1;
   if(containerRect.contains(pos))
   {
-    if(tabBar()->geometry().contains(pos))
+    if(count() == 0)
+    {
+      insertPolicy = QTabFramework::InsertOnTop;
+      result = containerRect;
+    }
+    else if(tabBar()->geometry().contains(pos))
     {
       insertPolicy = QTabFramework::Insert;
       result = containerRect;
@@ -298,10 +303,17 @@ void QTabWindow::setDropOverlayRect(const QRect& globalRect, const QRect& global
   }
 }
 
+void QTabWindow::closeEvent(QCloseEvent* event)
+{
+  // todo: "hide" all widgets
+
+  QMainWindow::closeEvent(event);
+}
+
 QTabFramework::~QTabFramework()
 {
   qDeleteAll(hiddenTabs);
-  qDeleteAll(windows);
+  qDeleteAll(floatingWindows);
 }
 
 void QTabFramework::addTab(QWidget* widget, InsertPolicy insertPolicy, QWidget* position)
@@ -318,12 +330,21 @@ void QTabFramework::addTab(QWidget* widget, QTabContainer* container, InsertPoli
   if(createWindow)
   {
     hiddenTabs.remove(widget);
-    QTabWindow* tabWindow = new QTabWindow(this);
-    windows.append(tabWindow);
-    QTabContainer* container = new QTabContainer(tabWindow, tabWindow);
-    container->addTab(widget, widget->windowTitle());
-    tabWindow->setCentralWidget(container);
-    tabWindow->show();
+    if(centralWidget())
+    {
+      QTabWindow* tabWindow = new QTabWindow(this);
+      floatingWindows.append(tabWindow);
+      QTabContainer* container = new QTabContainer(tabWindow, tabWindow);
+      container->addTab(widget, widget->windowTitle());
+      tabWindow->setCentralWidget(container);
+      tabWindow->show();
+    }
+    else
+    {
+      QTabContainer* container = new QTabContainer(this, this);
+      container->addTab(widget, widget->windowTitle());
+      setCentralWidget(container);
+    }
   }
   else
   {
@@ -517,6 +538,14 @@ void QTabFramework::hideTab(QWidget* widget)
 
 void QTabFramework::removeWindow(QTabWindow* window)
 {
-  windows.removeOne(window);
+  if(window == this)
+    return;
+  floatingWindows.removeOne(window);
   delete window;
+}
+
+void QTabFramework::closeEvent(QCloseEvent* event)
+{
+  qDeleteAll(floatingWindows);
+  floatingWindows.clear();
 }

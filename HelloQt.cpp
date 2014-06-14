@@ -20,6 +20,14 @@ int main(int argc, char **argv)
   tabFramework.addTab(testWidget3, QTabFramework::InsertLeft, testWidget1);
   tabFramework.addTab(testWidget4, QTabFramework::InsertBottom, testWidget1);
 
+
+  //QMenuBar* menuBar = tabFramework.menuBar();
+  //QMenu* menu = menuBar->addMenu(QObject::tr("&View"));
+  //menu->addAction();
+
+
+  tabFramework.show();
+
   //QMainWindow mainWindow;
   //QTabBar* tabBar = new QTabBar();
   //tabBar->addTab("tab hjk l  f hsdf dgfgdfgd jj k");

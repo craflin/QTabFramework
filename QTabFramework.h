@@ -1,56 +1,8 @@
 
 #pragma once
 
-class QTabWindow;
+class QTabFramework;
 class QTabContainer;
-
-class QTabFramework
-{
-public:
-  enum InsertPolicy
-  {
-    InsertFloating,
-    InsertOnTop,
-    Insert,
-    InsertLeft,
-    InsertRight,
-    InsertTop,
-    InsertBottom
-  };
-
-public:
-  ~QTabFramework();
-
-  void addTab(QWidget* widget, InsertPolicy insertPolicy = InsertFloating, QWidget* position = 0);
-  void moveTab(QWidget* widget, InsertPolicy insertPolicy = InsertFloating, QWidget* position = 0);
-  void removeTab(QWidget* widget);
-  void hideTab(QWidget* widget);
-
-  void saveLayout();
-  void loadLayout();
-
-private:
-  QList<QTabWindow*> windows;
-  QSet<QWidget*> hiddenTabs;
-
-private:
-  void addTab(QWidget* widget, QTabContainer* position, InsertPolicy insertPolicy, int tabIndex);
-  void moveTab(QWidget* widget, QTabContainer* position, InsertPolicy insertPolicy, int tabIndex);
-  void removeContainerIfEmpty(QTabContainer* tabContainer);
-  void removeWindow(QTabWindow* window);
-
-  friend class QTabDrawer;
-  friend class QTabContainer;
-};
-
-class QTabSplitter : public QSplitter
-{
-public:
-  QTabSplitter(Qt::Orientation orientation, QWidget* parent);
-
-private:
-  //friend class QTabWindow;
-};
 
 class QTabWindow : public QMainWindow
 {
@@ -65,9 +17,63 @@ private:
 private:
   void setDropOverlayRect(const QRect& globalRect, const QRect& tabRect = QRect());
 
+  virtual void closeEvent(QCloseEvent* event);
+
   friend class QTabContainer;
   friend class QTabDrawer;
   friend class QTabFramework;
+};
+
+
+class QTabFramework : public QTabWindow
+{
+public:
+  enum InsertPolicy
+  {
+    InsertFloating,
+    InsertOnTop,
+    Insert,
+    InsertLeft,
+    InsertRight,
+    InsertTop,
+    InsertBottom
+  };
+
+public:
+  QTabFramework() : QTabWindow(this) {}
+  ~QTabFramework();
+
+  void addTab(QWidget* widget, InsertPolicy insertPolicy = InsertFloating, QWidget* position = 0);
+  void moveTab(QWidget* widget, InsertPolicy insertPolicy = InsertFloating, QWidget* position = 0);
+  void removeTab(QWidget* widget);
+  void hideTab(QWidget* widget);
+
+  void saveLayout();
+  void loadLayout();
+
+private:
+  QList<QTabWindow*> floatingWindows;
+  QSet<QWidget*> hiddenTabs;
+
+private:
+  void addTab(QWidget* widget, QTabContainer* position, InsertPolicy insertPolicy, int tabIndex);
+  void moveTab(QWidget* widget, QTabContainer* position, InsertPolicy insertPolicy, int tabIndex);
+  void removeContainerIfEmpty(QTabContainer* tabContainer);
+  void removeWindow(QTabWindow* window);
+
+  virtual void closeEvent(QCloseEvent* event);
+
+  friend class QTabDrawer;
+  friend class QTabContainer;
+};
+
+class QTabSplitter : public QSplitter
+{
+public:
+  QTabSplitter(Qt::Orientation orientation, QWidget* parent);
+
+private:
+  //friend class QTabWindow;
 };
 
 class QTabContainer : public QTabWidget
