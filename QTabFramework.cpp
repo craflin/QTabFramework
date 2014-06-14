@@ -76,7 +76,6 @@ void QTabDrawer::mouseMoveEvent(QMouseEvent* event)
       {
         tabContainer->tabWindow->tabFramework->moveTab(dragWidget, tabContainer, QTabFramework::InsertFloating, -1);
       }
-      //delete drag ?
 
       pressedIndex = -1;
       return;
