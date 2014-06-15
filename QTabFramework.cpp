@@ -304,7 +304,29 @@ void QTabWindow::setDropOverlayRect(const QRect& globalRect, const QRect& global
 
 void QTabWindow::closeEvent(QCloseEvent* event)
 {
-  // todo: "hide" all widgets
+  // "hide" all widgets
+  QWidget* centralWidget = this->centralWidget();
+  if(centralWidget)
+  {
+    QList<QWidget*> widgets;
+    widgets.append(centralWidget);
+    for(QList<QWidget*>::Iterator i = widgets.begin(); i != widgets.end(); ++i)
+    {
+      QWidget* widget = *i;
+      QTabSplitter* tabSplitter = dynamic_cast<QTabSplitter*>(widget);
+      if(tabSplitter)
+      {
+        for(int i = 0, count = tabSplitter->count(); i < count; ++i)
+          widgets.append(tabSplitter->widget(i));
+      }
+      else
+      {
+        QTabContainer* tabContainer = dynamic_cast<QTabContainer*>(widget);
+        for(int i = 0, count = tabContainer->count(); i < count; ++i)
+          tabFramework->hideTab(tabContainer->widget(i), false);
+      }
+    }
+  }
 
   QMainWindow::closeEvent(event);
 }
@@ -525,13 +547,19 @@ void QTabFramework::removeTab(QWidget* widget)
 
 void QTabFramework::hideTab(QWidget* widget)
 {
+  hideTab(widget, true);
+}
+
+void QTabFramework::hideTab(QWidget* widget, bool removeContainerIfEmpty)
+{
   if(hiddenTabs.contains(widget))
     return;
   QTabContainer* tabContainer = dynamic_cast<QTabContainer*>(widget->parent()->parent());
   int movedIndex = tabContainer->indexOf(widget);
   tabContainer->removeTab(movedIndex);
   widget->setParent(NULL);
-  removeContainerIfEmpty(tabContainer);
+  if(removeContainerIfEmpty)
+    this->removeContainerIfEmpty(tabContainer);
   hiddenTabs.insert(widget);
 }
 
@@ -547,4 +575,6 @@ void QTabFramework::closeEvent(QCloseEvent* event)
 {
   qDeleteAll(floatingWindows);
   floatingWindows.clear();
+
+  QMainWindow::closeEvent(event); // skip QTabWindow closeEvent handler
 }

@@ -60,11 +60,13 @@ private:
   void moveTab(QWidget* widget, QTabContainer* position, InsertPolicy insertPolicy, int tabIndex);
   void removeContainerIfEmpty(QTabContainer* tabContainer);
   void removeWindow(QTabWindow* window);
+  void hideTab(QWidget* widget, bool removeContainerIfEmpty);
 
   virtual void closeEvent(QCloseEvent* event);
 
   friend class QTabDrawer;
   friend class QTabContainer;
+  friend class QTabWindow;
 };
 
 class QTabSplitter : public QSplitter
