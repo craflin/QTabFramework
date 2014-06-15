@@ -74,7 +74,7 @@ void QTabDrawer::mouseMoveEvent(QMouseEvent* event)
       Qt::DropAction ret = drag->exec(Qt::MoveAction);
       if(ret != Qt::MoveAction)
       {
-        tabContainer->tabWindow->tabFramework->moveTab(dragWidget, tabContainer, QTabFramework::InsertFloating, -1);
+       tabContainer->tabWindow->tabFramework->moveTab(dragWidget, tabContainer, QTabFramework::InsertFloating, -1);
       }
 
       pressedIndex = -1;
@@ -260,10 +260,8 @@ void QTabWindow::setDropOverlayRect(const QRect& globalRect, const QRect& global
   if(globalRect.isValid())
   {
     if(!overlayWidget)
-    {
       overlayWidget = new QTabDropOverlay(this);
-      overlayWidget->show();
-    }
+    overlayWidget->show();
     if(globalTabRect.isValid())
     {
       QRect wrect = globalRect;
@@ -271,10 +269,8 @@ void QTabWindow::setDropOverlayRect(const QRect& globalRect, const QRect& global
       QRect rect = wrect.translated(mapFromGlobal(QPoint(0, 0)));
       overlayWidget->setGeometry(rect);
       if(!overlayWidgetTab)
-      {
         overlayWidgetTab = new QTabDropOverlay(this);
-        overlayWidgetTab->show();
-      }
+      overlayWidgetTab->show();
       QRect tabRect = globalTabRect.translated(mapFromGlobal(QPoint(0, 0)));
       overlayWidgetTab->setGeometry(tabRect);
     }
@@ -283,21 +279,14 @@ void QTabWindow::setDropOverlayRect(const QRect& globalRect, const QRect& global
       QRect rect = globalRect.translated(mapFromGlobal(QPoint(0, 0)));
       overlayWidget->setGeometry(rect);
       if(overlayWidgetTab)
-      {
-        overlayWidgetTab->deleteLater();
-        overlayWidgetTab = 0;
-      }
+        overlayWidgetTab->hide();
     }
   }
   else if(overlayWidget)
   {
     if(overlayWidgetTab)
-    {
-      overlayWidgetTab->deleteLater();
-      overlayWidgetTab = NULL;
-    }
-    overlayWidget->deleteLater();
-    overlayWidget = NULL;
+      overlayWidgetTab->hide();
+    overlayWidget->hide();
   }
 }
 
