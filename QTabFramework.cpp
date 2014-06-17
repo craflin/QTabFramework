@@ -259,7 +259,6 @@ void QTabWindow::setDropOverlayRect(const QRect& globalRect, const QRect& global
 {
   if(globalRect.isValid())
   {
-    
     if(!overlayWidget)
     {
       overlayWidget = new QTabDropOverlay(this);
@@ -290,7 +289,7 @@ void QTabWindow::setDropOverlayRect(const QRect& globalRect, const QRect& global
       }
     }
   }
-  else
+  else if(overlayWidget)
   {
     if(overlayWidgetTab)
     {
@@ -426,6 +425,16 @@ void QTabFramework::addTab(QWidget* widget, QTabContainer* container, InsertPoli
         }
         newContainer->addTab(widget, widget->windowTitle());
         container->setParent(NULL); // remove container from splitter or tabWindow
+        if(!splitter)
+        {
+          container->tabWindow->setCentralWidget(newSplitter);
+          //newSplitter->setGeometry(container->geometry());
+        }
+        else
+        {
+          splitter->insertWidget(containerIndex, newSplitter);
+          splitter->setSizes(sizes);
+        }
         if(insertPolicy == InsertPolicy::InsertRight || insertPolicy == InsertPolicy::InsertBottom)
         {
           newSplitter->addWidget(container);
@@ -443,13 +452,6 @@ void QTabFramework::addTab(QWidget* widget, QTabContainer* container, InsertPoli
           sizes[1] -= (widthOrHeight - sizes[0]);
           sizes[0] = widthOrHeight;
           newSplitter->setSizes(sizes);
-        }
-        if(!splitter)
-          container->tabWindow->setCentralWidget(newSplitter);
-        else
-        {
-          splitter->insertWidget(containerIndex, newSplitter);
-          splitter->setSizes(sizes);
         }
       }
     }
