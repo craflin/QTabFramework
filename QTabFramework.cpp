@@ -73,9 +73,7 @@ void QTabDrawer::mouseMoveEvent(QMouseEvent* event)
       drag->setMimeData(mimeData);
       Qt::DropAction ret = drag->exec(Qt::MoveAction);
       if(ret != Qt::MoveAction)
-      {
-       tabContainer->tabWindow->tabFramework->moveTab(dragWidget, tabContainer, QTabFramework::InsertFloating, -1);
-      }
+        tabContainer->tabWindow->tabFramework->moveTabLater(dragWidget, 0, QTabFramework::InsertFloating, -1);
 
       pressedIndex = -1;
       return;
@@ -241,12 +239,12 @@ void QTabContainer::dropEvent(QDropEvent* event)
       tabRect = QRect();
     if(sourceTabContainer == this && (insertPolicy == QTabFramework::InsertOnTop || (sourceTabContainer->count() == 1  && insertPolicy != QTabFramework::Insert)) && !tabRect.isValid())
     {
-      tabWindow->tabFramework->moveTab(event->source(), this, QTabFramework::InsertFloating, tabIndex);
+      tabWindow->tabFramework->moveTabLater(event->source(), this, QTabFramework::InsertFloating, tabIndex);
       event->acceptProposedAction();
     }
     else
     {
-      tabWindow->tabFramework->moveTab(event->source(), this, insertPolicy, tabIndex);
+      tabWindow->tabFramework->moveTabLater(event->source(), this, insertPolicy, tabIndex);
       event->acceptProposedAction();
     }
     tabWindow->setDropOverlayRect(QRect());
@@ -321,16 +319,60 @@ void QTabWindow::closeEvent(QCloseEvent* event)
 
 QTabFramework::~QTabFramework()
 {
-  qDeleteAll(hiddenTabs);
+  for(QHash<QWidget*, TabData>::Iterator i = tabs.begin(), end = tabs.end(); i != end; ++i)
+  {
+    TabData& tabData = i.value();
+    if(tabData.hidden)
+      delete tabData.widget;
+  }
+
   qDeleteAll(floatingWindows);
 }
 
 void QTabFramework::addTab(QWidget* widget, InsertPolicy insertPolicy, QWidget* position)
 {
+  if(tabs.contains(widget))
+    return;
+
+  TabData& tabData = *tabs.insert(widget, TabData());
+  tabData.id = nextTabId++;
+  tabData.hidden = false;
+  tabData.widget = widget;
+  tabsById.insert(tabData.id, &tabData);
+
   if(!position)
     addTab(widget, NULL, insertPolicy, -1);
   else
     addTab(widget, dynamic_cast<QTabContainer*>(position->parent()->parent()), insertPolicy, -1);
+}
+
+void QTabFramework::removeTab(QWidget* widget)
+{
+  QHash<QWidget*, TabData>::Iterator it = tabs.find(widget);
+  if(it == tabs.end())
+    return;
+  TabData& tabData = it.value();
+  if(!tabData.hidden)
+  {
+    QTabContainer* tabContainer = dynamic_cast<QTabContainer*>(widget->parent()->parent());
+    int movedIndex = tabContainer->indexOf(widget);
+    tabContainer->removeTab(movedIndex);
+    widget->setParent(NULL);
+    removeContainerIfEmpty(tabContainer);
+    //hiddenTabs.remove(widget);
+  }
+  tabsById.remove(tabData.id);
+  tabs.erase(it);
+}
+
+void QTabFramework::hideTab(QWidget* widget)
+{
+  QHash<QWidget*, TabData>::Iterator it = tabs.find(widget);
+  if(it == tabs.end())
+    return;
+  TabData& tabData = it.value();
+  if(!tabData.hidden)
+    hideTab(widget, true);
 }
 
 void QTabFramework::addTab(QWidget* widget, QTabContainer* container, InsertPolicy insertPolicy, int tabIndex)
@@ -338,7 +380,6 @@ void QTabFramework::addTab(QWidget* widget, QTabContainer* container, InsertPoli
   bool createWindow = !container || insertPolicy == InsertFloating;
   if(createWindow)
   {
-    hiddenTabs.remove(widget);
     if(centralWidget())
     {
       QTabWindow* tabWindow = new QTabWindow(this);
@@ -364,14 +405,12 @@ void QTabFramework::addTab(QWidget* widget, QTabContainer* container, InsertPoli
     }
     if(insertPolicy == InsertPolicy::Insert)
     {
-      hiddenTabs.remove(widget);
       container->insertTab(tabIndex, widget, widget->windowTitle());
       container->setCurrentIndex(tabIndex);
     }
     else if(insertPolicy == InsertPolicy::InsertLeft || insertPolicy == InsertPolicy::InsertRight ||
       insertPolicy == InsertPolicy::InsertTop || insertPolicy == InsertPolicy::InsertBottom)
     {
-      hiddenTabs.remove(widget);
       Qt::Orientation orientation = (insertPolicy == InsertPolicy::InsertLeft || insertPolicy == InsertPolicy::InsertRight) ? Qt::Horizontal : Qt::Vertical;
       int widthOrHeight = 0;
       if(orientation == Qt::Horizontal)
@@ -460,6 +499,23 @@ void QTabFramework::moveTab(QWidget* widget, QTabContainer* position, InsertPoli
   removeContainerIfEmpty(tabContainer);
 }
 
+void QTabFramework::moveTabLater(QWidget* widget, QTabContainer* position, InsertPolicy insertPolicy, int tabIndex)
+{
+  moveTabWidget = widget;
+  moveTabPosition = position;
+  moveTabInsertPolicy = insertPolicy;
+  moveTabTabIndex = tabIndex;
+  QTimer::singleShot(0, this, SLOT(executeMoveTab()));
+}
+
+void QTabFramework::executeMoveTab()
+{
+  if(!moveTabWidget)
+    return;
+  moveTab(moveTabWidget, moveTabPosition, moveTabInsertPolicy, moveTabTabIndex);
+  moveTabWidget = 0;
+}
+
 void QTabFramework::removeContainerIfEmpty(QTabContainer* tabContainer)
 {
   if(tabContainer->count() == 0)
@@ -526,32 +582,23 @@ void QTabFramework::removeContainerIfEmpty(QTabContainer* tabContainer)
   }
 }
 
-void QTabFramework::removeTab(QWidget* widget)
-{
-  QTabContainer* tabContainer = dynamic_cast<QTabContainer*>(widget->parent()->parent());
-  int movedIndex = tabContainer->indexOf(widget);
-  tabContainer->removeTab(movedIndex);
-  widget->setParent(NULL);
-  removeContainerIfEmpty(tabContainer);
-  hiddenTabs.remove(widget);
-}
-
-void QTabFramework::hideTab(QWidget* widget)
-{
-  hideTab(widget, true);
-}
-
 void QTabFramework::hideTab(QWidget* widget, bool removeContainerIfEmpty)
 {
-  if(hiddenTabs.contains(widget))
+  QHash<QWidget*, TabData>::Iterator it =  tabs.find(widget);
+  if(it == tabs.end())
     return;
+  TabData& tabData = it.value();
+  if(tabData.hidden)
+    return;
+
   QTabContainer* tabContainer = dynamic_cast<QTabContainer*>(widget->parent()->parent());
   int movedIndex = tabContainer->indexOf(widget);
   tabContainer->removeTab(movedIndex);
   widget->setParent(NULL);
   if(removeContainerIfEmpty)
     this->removeContainerIfEmpty(tabContainer);
-  hiddenTabs.insert(widget);
+
+  tabData.hidden = true;
 }
 
 void QTabFramework::removeWindow(QTabWindow* window)

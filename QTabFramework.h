@@ -27,6 +27,8 @@ private:
 
 class QTabFramework : public QTabWindow
 {
+  Q_OBJECT
+
 public:
   enum InsertPolicy
   {
@@ -40,24 +42,48 @@ public:
   };
 
 public:
-  QTabFramework() : QTabWindow(this) {}
+  QTabFramework() : QTabWindow(this), nextTabId(1), moveTabWidget(0) {}
   ~QTabFramework();
 
   void addTab(QWidget* widget, InsertPolicy insertPolicy = InsertFloating, QWidget* position = 0);
-  void moveTab(QWidget* widget, InsertPolicy insertPolicy = InsertFloating, QWidget* position = 0);
+  //void moveTab(QWidget* widget, InsertPolicy insertPolicy = InsertFloating, QWidget* position = 0);
   void removeTab(QWidget* widget);
   void hideTab(QWidget* widget);
 
   void saveLayout();
   void loadLayout();
 
+
+private:
+
+  struct TabData
+  {
+    quint32 id;
+    bool hidden;
+    QWidget* widget;
+    QAction* action;
+  };
+
 private:
   QList<QTabWindow*> floatingWindows;
-  QSet<QWidget*> hiddenTabs;
+  //QSet<QWidget*> hiddenTabs;
+  QHash<QWidget*, TabData> tabs;
+  QHash<quint32, TabData*> tabsById;
+  quint32 nextTabId;
+
+  QWidget* moveTabWidget;
+  QTabContainer* moveTabPosition;
+  InsertPolicy moveTabInsertPolicy;
+  int moveTabTabIndex;
+
+private slots:
+  //void moveTab(quint32 widgetId, quint32 positionId, InsertPolicy insertPolicy, int tabIndex);
+  void executeMoveTab();
 
 private:
   void addTab(QWidget* widget, QTabContainer* position, InsertPolicy insertPolicy, int tabIndex);
   void moveTab(QWidget* widget, QTabContainer* position, InsertPolicy insertPolicy, int tabIndex);
+  void moveTabLater(QWidget* widget, QTabContainer* position, InsertPolicy insertPolicy, int tabIndex);
   void removeContainerIfEmpty(QTabContainer* tabContainer);
   void removeWindow(QTabWindow* window);
   void hideTab(QWidget* widget, bool removeContainerIfEmpty);
