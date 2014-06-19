@@ -410,9 +410,9 @@ void QTabFramework::addTab(QWidget* widget, QTabContainer* container, InsertPoli
       Qt::Orientation orientation = (insertPolicy == InsertPolicy::InsertLeft || insertPolicy == InsertPolicy::InsertRight) ? Qt::Horizontal : Qt::Vertical;
       int widthOrHeight = 0;
       if(orientation == Qt::Horizontal)
-        widthOrHeight = container->width() / 3;
+        widthOrHeight = container->width();
       else
-        widthOrHeight = container->height() / 3;
+        widthOrHeight = container->height();
       QTabSplitter* splitter = dynamic_cast<QTabSplitter*>(container->parent());
       if(splitter && splitter->orientation() == orientation)
       {
@@ -423,16 +423,16 @@ void QTabFramework::addTab(QWidget* widget, QTabContainer* container, InsertPoli
         {
           QList<int> sizes = splitter->sizes();
           splitter->insertWidget(containerIndex + 1, newContainer);
-          sizes[containerIndex] -= widthOrHeight;
-          sizes.insert(containerIndex + 1, widthOrHeight);
+          sizes[containerIndex] -= widthOrHeight / 3;
+          sizes.insert(containerIndex + 1, widthOrHeight / 3 - splitter->handleWidth());
           splitter->setSizes(sizes);
         }
         else
         {
           QList<int> sizes = splitter->sizes();
           splitter->insertWidget(containerIndex, newContainer);
-          sizes[containerIndex] -= widthOrHeight;
-          sizes.insert(containerIndex, widthOrHeight);
+          sizes[containerIndex] -= widthOrHeight / 3;
+          sizes.insert(containerIndex, widthOrHeight / 3 - splitter->handleWidth());
           splitter->setSizes(sizes);
         }
       }
@@ -450,10 +450,7 @@ void QTabFramework::addTab(QWidget* widget, QTabContainer* container, InsertPoli
         newContainer->addTab(widget, widget->windowTitle());
         container->setParent(NULL); // remove container from splitter or tabWindow
         if(!splitter)
-        {
           container->tabWindow->setCentralWidget(newSplitter);
-          //newSplitter->setGeometry(container->geometry());
-        }
         else
         {
           splitter->insertWidget(containerIndex, newSplitter);
@@ -463,18 +460,18 @@ void QTabFramework::addTab(QWidget* widget, QTabContainer* container, InsertPoli
         {
           newSplitter->addWidget(container);
           newSplitter->addWidget(newContainer);
-          QList<int> sizes = newSplitter->sizes();
-          sizes[0] -= (widthOrHeight - sizes[1]);
-          sizes[1] = widthOrHeight;
+          QList<int> sizes;
+          sizes.append(widthOrHeight - widthOrHeight / 3);
+          sizes.append(widthOrHeight / 3 - newSplitter->handleWidth());
           newSplitter->setSizes(sizes);
         }
         else
         {
           newSplitter->addWidget(newContainer);
           newSplitter->addWidget(container);
-          QList<int> sizes = newSplitter->sizes();
-          sizes[1] -= (widthOrHeight - sizes[0]);
-          sizes[0] = widthOrHeight;
+          QList<int> sizes;
+          sizes.append(widthOrHeight / 3 - newSplitter->handleWidth());
+          sizes.append(widthOrHeight - widthOrHeight / 3);
           newSplitter->setSizes(sizes);
         }
       }
