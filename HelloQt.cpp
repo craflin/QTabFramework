@@ -15,6 +15,7 @@ int main(int argc, char **argv)
   QLabel* testWidget4 = new QLabel("Output");
   testWidget4->setWindowTitle("Output");
 
+  tabFramework.resize(QSize(800, 600));
   tabFramework.addTab(testWidget1);
   tabFramework.addTab(testWidget2, QTabFramework::InsertOnTop, testWidget1);
   tabFramework.addTab(testWidget3, QTabFramework::InsertLeft, testWidget1);

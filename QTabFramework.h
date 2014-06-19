@@ -16,6 +16,7 @@ private:
 
 private:
   void setDropOverlayRect(const QRect& globalRect, const QRect& tabRect = QRect());
+  //void removeDropOverlay();
 
   virtual void closeEvent(QCloseEvent* event);
 
