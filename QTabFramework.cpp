@@ -323,7 +323,7 @@ QTabFramework::~QTabFramework()
   {
     TabData& tabData = i.value();
     if(tabData.hidden)
-      delete tabData.widget;
+      delete i.key();
   }
 
   qDeleteAll(floatingWindows);
@@ -335,10 +335,8 @@ void QTabFramework::addTab(QWidget* widget, InsertPolicy insertPolicy, QWidget* 
     return;
 
   TabData& tabData = *tabs.insert(widget, TabData());
-  tabData.id = nextTabId++;
   tabData.hidden = false;
-  tabData.widget = widget;
-  tabsById.insert(tabData.id, &tabData);
+  tabData.action = 0;
 
   if(!position)
     addTab(widget, NULL, insertPolicy, -1);
@@ -359,9 +357,7 @@ void QTabFramework::removeTab(QWidget* widget)
     tabContainer->removeTab(movedIndex);
     widget->setParent(NULL);
     removeContainerIfEmpty(tabContainer);
-    //hiddenTabs.remove(widget);
   }
-  tabsById.remove(tabData.id);
   tabs.erase(it);
 }
 

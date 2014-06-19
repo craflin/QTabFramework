@@ -42,7 +42,7 @@ public:
   };
 
 public:
-  QTabFramework() : QTabWindow(this), nextTabId(1), moveTabWidget(0) {}
+  QTabFramework() : QTabWindow(this), moveTabWidget(0) {}
   ~QTabFramework();
 
   void addTab(QWidget* widget, InsertPolicy insertPolicy = InsertFloating, QWidget* position = 0);
@@ -58,18 +58,13 @@ private:
 
   struct TabData
   {
-    quint32 id;
     bool hidden;
-    QWidget* widget;
     QAction* action;
   };
 
 private:
   QList<QTabWindow*> floatingWindows;
-  //QSet<QWidget*> hiddenTabs;
   QHash<QWidget*, TabData> tabs;
-  QHash<quint32, TabData*> tabsById;
-  quint32 nextTabId;
 
   QWidget* moveTabWidget;
   QTabContainer* moveTabPosition;
@@ -77,7 +72,6 @@ private:
   int moveTabTabIndex;
 
 private slots:
-  //void moveTab(quint32 widgetId, quint32 positionId, InsertPolicy insertPolicy, int tabIndex);
   void executeMoveTab();
 
 private:
@@ -99,9 +93,6 @@ class QTabSplitter : public QSplitter
 {
 public:
   QTabSplitter(Qt::Orientation orientation, QWidget* parent);
-
-private:
-  //friend class QTabWindow;
 };
 
 class QTabContainer : public QTabWidget
@@ -122,8 +113,6 @@ private:
 
   friend class QTabDrawer;
   friend class QTabFramework;
-  //friend class QTabWindow;
-  //friend class QTabSplitter;
 };
 
 class QTabDrawer : public QTabBar
@@ -145,6 +134,4 @@ protected:
 
 private slots:
   void closeTab(int index);
-
-  //friend class QTabContainer;
 };
