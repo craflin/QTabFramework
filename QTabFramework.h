@@ -11,6 +11,9 @@ class QTabWindow : public QMainWindow
 public:
   QTabWindow(QTabFramework* tabFramework);
 
+signals:
+  void activated();
+
 private:
   QTabFramework* tabFramework;
   QWidget* overlayWidget;
@@ -24,6 +27,7 @@ private:
 
 private:
   virtual void closeEvent(QCloseEvent* event);
+  virtual void changeEvent(QEvent* event);
 
   friend class QTabContainer;
   friend class QTabDrawer;
@@ -58,12 +62,10 @@ public:
 
   QAction* toggleViewAction(QWidget* widget);
 
-  void saveLayout();
-  void loadLayout();
-
+  void restoreLayout(const QByteArray& layout);
+  QByteArray saveLayout();
 
 private:
-
   struct TabData
   {
     bool hidden;
@@ -74,6 +76,7 @@ private:
   QList<QTabWindow*> floatingWindows;
   QHash<QWidget*, TabData> tabs;
   QSignalMapper signalMapper;
+  QSignalMapper activatedSignalMapper;
 
   QWidget* moveTabWidget;
   QTabContainer* moveTabPosition;
@@ -83,6 +86,7 @@ private:
 private slots:
   void executeMoveTab();
   void toggleVisibility(QWidget* widget);
+  void updateWindowZOrder(QWidget* widget);
 
 private:
   void addTab(QWidget* widget, QTabContainer* position, InsertPolicy insertPolicy, int tabIndex);

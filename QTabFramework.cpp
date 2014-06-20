@@ -363,9 +363,23 @@ void QTabWindow::closeEvent(QCloseEvent* event)
   QMainWindow::closeEvent(event);
 }
 
+void QTabWindow::changeEvent(QEvent* event)
+{
+  if(event->type() == QEvent::ActivationChange && isActiveWindow())
+  {
+    emit activated();
+  }
+
+  QMainWindow::changeEvent(event);
+}
+
 QTabFramework::QTabFramework() : QTabWindow(this), moveTabWidget(0)
 {
   connect(&signalMapper, SIGNAL(mapped(QWidget*)), this, SLOT(toggleVisibility(QWidget*)));
+  floatingWindows.append(this);
+  connect(&activatedSignalMapper, SIGNAL(mapped(QWidget*)), this, SLOT(updateWindowZOrder(QWidget*)));
+  activatedSignalMapper.setMapping(this, this);
+  connect(this, SIGNAL(activated()), &activatedSignalMapper, SLOT(map()));
 }
 
 QTabFramework::~QTabFramework()
@@ -377,6 +391,7 @@ QTabFramework::~QTabFramework()
       delete i.key();
   }
 
+  floatingWindows.removeOne(this);
   qDeleteAll(floatingWindows);
 }
 
@@ -457,6 +472,23 @@ QAction* QTabFramework::toggleViewAction(QWidget* widget)
   return tabData.action;
 }
 
+void QTabFramework::restoreLayout(const QByteArray& layout)
+{
+}
+
+QByteArray QTabFramework::saveLayout()
+{
+  QByteArray result;
+
+  // save window list
+  // save window z-order
+  // save layout
+  // save tab order
+  // save focus tab
+
+  return result;
+}
+
 void QTabFramework::addTab(QWidget* widget, QTabContainer* container, InsertPolicy insertPolicy, int tabIndex)
 {
   bool createWindow = !container || insertPolicy == InsertFloating;
@@ -466,6 +498,8 @@ void QTabFramework::addTab(QWidget* widget, QTabContainer* container, InsertPoli
     {
       QTabWindow* tabWindow = new QTabWindow(this);
       floatingWindows.append(tabWindow);
+      activatedSignalMapper.setMapping(tabWindow, tabWindow);
+      connect(tabWindow, SIGNAL(activated()), &activatedSignalMapper, SLOT(map()));
       QTabContainer* container = new QTabContainer(tabWindow, tabWindow);
       container->addTab(widget, widget->windowTitle());
       tabWindow->setCentralWidget(container);
@@ -622,6 +656,15 @@ void QTabFramework::toggleVisibility(QWidget* widget)
     hideTab(widget);
 }
 
+void QTabFramework::updateWindowZOrder(QWidget* widget)
+{
+  QTabWindow* tabWindow = dynamic_cast<QTabWindow*>(widget);
+  if(!tabWindow)
+    return;
+  floatingWindows.removeOne(tabWindow);
+  floatingWindows.append(tabWindow);
+}
+
 void QTabFramework::removeContainerIfEmpty(QTabContainer* tabContainer)
 {
   if(tabContainer->count() == 0)
@@ -719,6 +762,7 @@ void QTabFramework::removeWindow(QTabWindow* window)
 
 void QTabFramework::closeEvent(QCloseEvent* event)
 {
+  floatingWindows.removeOne(this);
   qDeleteAll(floatingWindows);
   floatingWindows.clear();
 
