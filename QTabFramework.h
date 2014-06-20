@@ -15,6 +15,14 @@ signals:
   void activated();
 
 private:
+  enum LayoutType
+  {
+    WindowType,
+    SplitterType,
+    ContainerType,
+  };
+
+private:
   QTabFramework* tabFramework;
   QWidget* overlayWidget;
   QWidget* overlayWidgetTab;
@@ -24,6 +32,7 @@ private slots:
 
 private:
   void setDropOverlayRect(const QRect& globalRect, const QRect& tabRect = QRect());
+  void writeLayout(QByteArray& buffer);
 
 private:
   virtual void closeEvent(QCloseEvent* event);
@@ -32,6 +41,7 @@ private:
   friend class QTabContainer;
   friend class QTabDrawer;
   friend class QTabFramework;
+  friend class QTabSplitter;
 };
 
 
@@ -107,6 +117,11 @@ class QTabSplitter : public QSplitter
 {
 public:
   QTabSplitter(Qt::Orientation orientation, QWidget* parent);
+
+private:
+  void writeLayout(QByteArray& buffer);
+
+  friend class QTabWindow;
 };
 
 class QTabContainer : public QTabWidget
@@ -120,6 +135,8 @@ private:
 private:
   QRect findDropRect(const QPoint& globalPos, QTabFramework::InsertPolicy& insertPolicy, QRect& tabRect, int& tabIndex);
 
+  void writeLayout(QByteArray& buffer);
+
 private:
   virtual void dragEnterEvent(QDragEnterEvent* event);
   virtual void dragLeaveEvent(QDragLeaveEvent* event);
@@ -128,6 +145,8 @@ private:
 
   friend class QTabDrawer;
   friend class QTabFramework;
+  friend class QTabWindow;
+  friend class QTabSplitter;
 };
 
 class QTabDrawer : public QTabBar
