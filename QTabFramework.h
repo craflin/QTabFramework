@@ -6,18 +6,23 @@ class QTabContainer;
 
 class QTabWindow : public QMainWindow
 {
+  Q_OBJECT
+
 public:
-  QTabWindow(QTabFramework* tabFramework) : tabFramework(tabFramework), overlayWidget(0), overlayWidgetTab(0) {}
+  QTabWindow(QTabFramework* tabFramework);
 
 private:
   QTabFramework* tabFramework;
   QWidget* overlayWidget;
   QWidget* overlayWidgetTab;
 
+private slots:
+  void hideCurrent();
+
 private:
   void setDropOverlayRect(const QRect& globalRect, const QRect& tabRect = QRect());
-  //void removeDropOverlay();
 
+private:
   virtual void closeEvent(QCloseEvent* event);
 
   friend class QTabContainer;
@@ -111,6 +116,7 @@ private:
 private:
   QRect findDropRect(const QPoint& globalPos, QTabFramework::InsertPolicy& insertPolicy, QRect& tabRect, int& tabIndex);
 
+private:
   virtual void dragEnterEvent(QDragEnterEvent* event);
   virtual void dragLeaveEvent(QDragLeaveEvent* event);
   virtual void dragMoveEvent(QDragMoveEvent* event);

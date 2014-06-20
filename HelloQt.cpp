@@ -6,13 +6,13 @@ int main(int argc, char **argv)
   QApplication app(argc, argv);
 
   QTabFramework tabFramework;
-  QLabel* testWidget1 = new QLabel("Test.cpp");
+  QLineEdit* testWidget1 = new QLineEdit("Test.cpp");
   testWidget1->setWindowTitle("Test.cpp");
-  QLabel* testWidget2 = new QLabel("Test2.cpp");
+  QLineEdit* testWidget2 = new QLineEdit("Test2.cpp");
   testWidget2->setWindowTitle("Test2.cpp");
-  QLabel* testWidget3 = new QLabel("Solution Explorer");
+  QLineEdit* testWidget3 = new QLineEdit("Solution Explorer");
   testWidget3->setWindowTitle("Solution Explorer");
-  QLabel* testWidget4 = new QLabel("Output");
+  QLineEdit* testWidget4 = new QLineEdit("Output");
   testWidget4->setWindowTitle("Output");
 
   tabFramework.resize(QSize(800, 600));

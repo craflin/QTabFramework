@@ -263,6 +263,26 @@ void QTabContainer::dropEvent(QDropEvent* event)
   event->ignore();
 }
 
+QTabWindow::QTabWindow(QTabFramework* tabFramework) : tabFramework(tabFramework), overlayWidget(0), overlayWidgetTab(0)
+{
+  new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_W), this, SLOT(hideCurrent()));
+}
+
+void QTabWindow::hideCurrent()
+{
+  QObject* widget = QApplication::focusWidget();
+  while(widget)
+  {
+    QTabContainer* tabContainer = dynamic_cast<QTabContainer*>(widget);
+    if(tabContainer)
+    {
+      tabFramework->hideTab(tabContainer->currentWidget());
+      return;
+    }
+    widget = widget->parent();
+  }
+}
+
 void QTabWindow::setDropOverlayRect(const QRect& globalRect, const QRect& globalTabRect)
 {
   if(globalRect.isValid())
