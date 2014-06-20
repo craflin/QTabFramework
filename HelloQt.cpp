@@ -21,6 +21,16 @@ int main(int argc, char **argv)
   tabFramework.addTab(testWidget3, QTabFramework::InsertLeft, testWidget1);
   tabFramework.addTab(testWidget4, QTabFramework::InsertBottom, testWidget1);
 
+  //QMenuBar* menuBar = new QMenuBar;
+  //tabFramework.setMenuBar(menuBar);
+  QMenuBar* menuBar = tabFramework.menuBar();
+  QMenu* menu = menuBar->addMenu("&View");
+  menu->addAction(tabFramework.toggleViewAction(testWidget1));
+  menu->addAction(tabFramework.toggleViewAction(testWidget2));
+  menu->addAction(tabFramework.toggleViewAction(testWidget3));
+  menu->addAction(tabFramework.toggleViewAction(testWidget4));
+
+
 
   //QMenuBar* menuBar = tabFramework.menuBar();
   //QMenu* menu = menuBar->addMenu(QObject::tr("&View"));

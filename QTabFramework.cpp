@@ -71,6 +71,13 @@ void QTabDrawer::mouseMoveEvent(QMouseEvent* event)
 
       QDrag* drag = new QDrag(dragWidget);
       drag->setMimeData(mimeData);
+
+      QRect tabRect = this->tabRect(pressedIndex);
+      QPixmap pixmap = QPixmap::grabWidget(this, tabRect);
+      drag->setPixmap(pixmap);
+      drag->setHotSpot(QPoint(event->pos().x() - tabRect.x(), event->pos().y() - tabRect.y()));
+      //drag->setHotSpot(QPoint(dragStartPosition.x() - tabRect.x(), dragStartPosition.y() - tabRect.y()));
+
       Qt::DropAction ret = drag->exec(Qt::MoveAction);
       if(ret != Qt::MoveAction)
         tabContainer->tabWindow->tabFramework->moveTabLater(dragWidget, 0, QTabFramework::InsertFloating, -1);
@@ -336,6 +343,11 @@ void QTabWindow::closeEvent(QCloseEvent* event)
   QMainWindow::closeEvent(event);
 }
 
+QTabFramework::QTabFramework() : QTabWindow(this), moveTabWidget(0)
+{
+  connect(&signalMapper, SIGNAL(mapped(QWidget*)), this, SLOT(toggleVisibility(QWidget*)));
+}
+
 QTabFramework::~QTabFramework()
 {
   for(QHash<QWidget*, TabData>::Iterator i = tabs.begin(), end = tabs.end(); i != end; ++i)
@@ -357,10 +369,26 @@ void QTabFramework::addTab(QWidget* widget, InsertPolicy insertPolicy, QWidget* 
   tabData.hidden = false;
   tabData.action = 0;
 
-  if(!position)
-    addTab(widget, NULL, insertPolicy, -1);
+  addTab(widget, position ? dynamic_cast<QTabContainer*>(position->parent()->parent()) : 0, insertPolicy, -1);
+}
+
+void QTabFramework::moveTab(QWidget* widget, InsertPolicy insertPolicy, QWidget* position)
+{
+  QHash<QWidget*, TabData>::Iterator it =  tabs.find(widget);
+  if(it == tabs.end())
+    return;
+  TabData& tabData = it.value();
+  if(tabData.hidden)
+  {
+    addTab(widget, position ? dynamic_cast<QTabContainer*>(position->parent()->parent()) : 0, insertPolicy, -1);
+    tabData.hidden = false;
+    if(tabData.action)
+      tabData.action->setChecked(true);
+  }
   else
-    addTab(widget, dynamic_cast<QTabContainer*>(position->parent()->parent()), insertPolicy, -1);
+  {
+    moveTab(widget, position ? dynamic_cast<QTabContainer*>(position->parent()->parent()) : 0, insertPolicy, -1);
+  }
 }
 
 void QTabFramework::removeTab(QWidget* widget)
@@ -377,6 +405,8 @@ void QTabFramework::removeTab(QWidget* widget)
     widget->setParent(NULL);
     removeContainerIfEmpty(tabContainer);
   }
+  if(tabData.action)
+    delete tabData.action;
   tabs.erase(it);
 }
 
@@ -388,6 +418,23 @@ void QTabFramework::hideTab(QWidget* widget)
   TabData& tabData = it.value();
   if(!tabData.hidden)
     hideTab(widget, true);
+}
+
+QAction* QTabFramework::toggleViewAction(QWidget* widget)
+{
+  QHash<QWidget*, TabData>::Iterator it = tabs.find(widget);
+  if(it == tabs.end())
+    return 0;
+  TabData& tabData = it.value();
+  if(!tabData.action)
+  {
+    tabData.action = new QAction(widget->windowTitle(), this);
+    tabData.action->setCheckable(true);
+    tabData.action->setChecked(!tabData.hidden);
+    connect(tabData.action, SIGNAL(triggered()), &signalMapper, SLOT(map()));
+    signalMapper.setMapping(tabData.action, widget);
+  }
+  return tabData.action;
 }
 
 void QTabFramework::addTab(QWidget* widget, QTabContainer* container, InsertPolicy insertPolicy, int tabIndex)
@@ -543,6 +590,18 @@ void QTabFramework::executeMoveTab()
   moveTabWidget = 0;
 }
 
+void QTabFramework::toggleVisibility(QWidget* widget)
+{
+  QHash<QWidget*, TabData>::Iterator it = tabs.find(widget);
+  if(it == tabs.end())
+    return;
+  TabData& tabData = it.value();
+  if(tabData.hidden)
+    moveTab(widget, InsertFloating, 0);
+  else
+    hideTab(widget);
+}
+
 void QTabFramework::removeContainerIfEmpty(QTabContainer* tabContainer)
 {
   if(tabContainer->count() == 0)
@@ -626,6 +685,8 @@ void QTabFramework::hideTab(QWidget* widget, bool removeContainerIfEmpty)
     this->removeContainerIfEmpty(tabContainer);
 
   tabData.hidden = true;
+  if(tabData.action)
+    tabData.action->setChecked(!tabData.hidden);
 }
 
 void QTabFramework::removeWindow(QTabWindow* window)

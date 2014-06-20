@@ -43,13 +43,15 @@ public:
   };
 
 public:
-  QTabFramework() : QTabWindow(this), moveTabWidget(0) {}
+  QTabFramework();
   ~QTabFramework();
 
   void addTab(QWidget* widget, InsertPolicy insertPolicy = InsertFloating, QWidget* position = 0);
-  //void moveTab(QWidget* widget, InsertPolicy insertPolicy = InsertFloating, QWidget* position = 0);
+  void moveTab(QWidget* widget, InsertPolicy insertPolicy = InsertFloating, QWidget* position = 0);
   void removeTab(QWidget* widget);
   void hideTab(QWidget* widget);
+
+  QAction* toggleViewAction(QWidget* widget);
 
   void saveLayout();
   void loadLayout();
@@ -66,6 +68,7 @@ private:
 private:
   QList<QTabWindow*> floatingWindows;
   QHash<QWidget*, TabData> tabs;
+  QSignalMapper signalMapper;
 
   QWidget* moveTabWidget;
   QTabContainer* moveTabPosition;
@@ -74,6 +77,7 @@ private:
 
 private slots:
   void executeMoveTab();
+  void toggleVisibility(QWidget* widget);
 
 private:
   void addTab(QWidget* widget, QTabContainer* position, InsertPolicy insertPolicy, int tabIndex);
