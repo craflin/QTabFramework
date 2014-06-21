@@ -14,6 +14,10 @@ public:
 signals:
   void activated();
 
+protected:
+  virtual void closeEvent(QCloseEvent* event);
+  virtual void changeEvent(QEvent* event);
+
 private:
   enum LayoutType
   {
@@ -33,17 +37,13 @@ private slots:
 private:
   void setDropOverlayRect(const QRect& globalRect, const QRect& tabRect = QRect());
   void writeLayout(QByteArray& buffer);
-
-private:
-  virtual void closeEvent(QCloseEvent* event);
-  virtual void changeEvent(QEvent* event);
+  void hideAllTabs();
 
   friend class QTabContainer;
   friend class QTabDrawer;
   friend class QTabFramework;
   friend class QTabSplitter;
 };
-
 
 class QTabFramework : public QTabWindow
 {
@@ -75,9 +75,13 @@ public:
   void restoreLayout(const QByteArray& layout);
   QByteArray saveLayout();
 
+protected:
+  virtual void closeEvent(QCloseEvent* event);
+
 private:
   struct TabData
   {
+    QString objectName;
     bool hidden;
     QAction* action;
   };
@@ -85,6 +89,7 @@ private:
 private:
   QList<QTabWindow*> floatingWindows;
   QHash<QWidget*, TabData> tabs;
+  QHash<QString, QWidget*> tabsByName;
   QSignalMapper signalMapper;
   QSignalMapper activatedSignalMapper;
 
@@ -105,8 +110,6 @@ private:
   void removeContainerIfEmpty(QTabContainer* tabContainer);
   void removeWindow(QTabWindow* window);
   void hideTab(QWidget* widget, bool removeContainerIfEmpty);
-
-  virtual void closeEvent(QCloseEvent* event);
 
   friend class QTabDrawer;
   friend class QTabContainer;
@@ -129,6 +132,12 @@ class QTabContainer : public QTabWidget
 public:
   QTabContainer(QWidget* parent, QTabWindow* tabWindow);
 
+protected:
+  virtual void dragEnterEvent(QDragEnterEvent* event);
+  virtual void dragLeaveEvent(QDragLeaveEvent* event);
+  virtual void dragMoveEvent(QDragMoveEvent* event);
+  virtual void dropEvent(QDropEvent* event);
+
 private:
   QTabWindow* tabWindow;
 
@@ -136,12 +145,6 @@ private:
   QRect findDropRect(const QPoint& globalPos, QTabFramework::InsertPolicy& insertPolicy, QRect& tabRect, int& tabIndex);
 
   void writeLayout(QByteArray& buffer);
-
-private:
-  virtual void dragEnterEvent(QDragEnterEvent* event);
-  virtual void dragLeaveEvent(QDragLeaveEvent* event);
-  virtual void dragMoveEvent(QDragMoveEvent* event);
-  virtual void dropEvent(QDropEvent* event);
 
   friend class QTabDrawer;
   friend class QTabFramework;
@@ -156,15 +159,15 @@ class QTabDrawer : public QTabBar
 public:
   QTabDrawer(QTabContainer* tabContainer);
 
-private:
-  QTabContainer* tabContainer;
-  int pressedIndex;
-  QPoint dragStartPosition;
-
 protected:
   virtual void mousePressEvent(QMouseEvent* event);
   virtual void mouseReleaseEvent(QMouseEvent* event);
   virtual void mouseMoveEvent(QMouseEvent* event);
+
+private:
+  QTabContainer* tabContainer;
+  int pressedIndex;
+  QPoint dragStartPosition;
 
 private slots:
   void closeTab(int index);

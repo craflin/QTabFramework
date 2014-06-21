@@ -371,6 +371,10 @@ void QTabWindow::writeLayout(QByteArray& buffer)
   quint32 geomSize = geometry.size();
   buffer.append((const char*)&geomSize, sizeof(quint32));
   buffer.append(geometry);
+  QByteArray state = saveState();
+  quint32 stateSize = state.size();
+  buffer.append((const char*)&stateSize, sizeof(quint32));
+  buffer.append(state);
 
   QWidget* widget = centralWidget();
   QTabSplitter* tabSplitter = dynamic_cast<QTabSplitter*>(widget);
@@ -384,45 +388,39 @@ void QTabWindow::writeLayout(QByteArray& buffer)
   }
 }
 
-//void QTabWindow::removeDropOverlay()
-//{
-//  if(overlayWidget)
-//  {
-//    if(overlayWidgetTab)
-//    {
-//      delete overlayWidgetTab;
-//      overlayWidgetTab = 0;
-//    }
-//    delete overlayWidget;
-//    overlayWidget = 0;
-//  }
-//}
+void QTabWindow::hideAllTabs()
+{
+  QWidget* centralWidget = this->centralWidget();
+  if(!centralWidget)
+    return;
+
+  QLinkedList<QWidget*> widgets;
+  widgets.append(centralWidget);
+  for(QLinkedList<QWidget*>::Iterator i = widgets.begin(); i != widgets.end(); ++i)
+  {
+    QWidget* widget = *i;
+    QTabSplitter* tabSplitter = dynamic_cast<QTabSplitter*>(widget);
+    if(tabSplitter)
+    {
+      for(int i = 0, count = tabSplitter->count(); i < count; ++i)
+      {
+        QWidget* widget = tabSplitter->widget(i);
+        widgets.append(widget);
+      }
+    }
+    else
+    {
+      QTabContainer* tabContainer = dynamic_cast<QTabContainer*>(widget);
+      if(tabContainer)
+        for(int i = tabContainer->count() - 1; i >= 0; --i)
+          tabFramework->hideTab(tabContainer->widget(i), false);
+    }
+  }
+}
 
 void QTabWindow::closeEvent(QCloseEvent* event)
 {
-  // "hide" all widgets
-  QWidget* centralWidget = this->centralWidget();
-  if(centralWidget)
-  {
-    QList<QWidget*> widgets;
-    widgets.append(centralWidget);
-    for(QList<QWidget*>::Iterator i = widgets.begin(); i != widgets.end(); ++i)
-    {
-      QWidget* widget = *i;
-      QTabSplitter* tabSplitter = dynamic_cast<QTabSplitter*>(widget);
-      if(tabSplitter)
-      {
-        for(int i = 0, count = tabSplitter->count(); i < count; ++i)
-          widgets.append(tabSplitter->widget(i));
-      }
-      else
-      {
-        QTabContainer* tabContainer = dynamic_cast<QTabContainer*>(widget);
-        for(int i = 0, count = tabContainer->count(); i < count; ++i)
-          tabFramework->hideTab(tabContainer->widget(i), false);
-      }
-    }
-  }
+  hideAllTabs();
 
   QMainWindow::closeEvent(event);
 }
@@ -430,9 +428,7 @@ void QTabWindow::closeEvent(QCloseEvent* event)
 void QTabWindow::changeEvent(QEvent* event)
 {
   if(event->type() == QEvent::ActivationChange && isActiveWindow())
-  {
     emit activated();
-  }
 
   QMainWindow::changeEvent(event);
 }
@@ -464,10 +460,38 @@ void QTabFramework::addTab(QWidget* widget, InsertPolicy insertPolicy, QWidget* 
   if(tabs.contains(widget))
     return;
 
+  // determine object name
+  QString objectName = widget->objectName();
+  if(objectName.isEmpty())
+  {
+    QString className = widget->metaObject()->className();
+    for(int num = 0;; ++num)
+    {
+      objectName = className + "_" + QString::number(num);
+      if(!tabsByName.contains(objectName))
+        break;
+    }
+  }
+  else
+  {
+    QString objectClassName = objectName;
+    if(tabsByName.contains(objectName))
+      for(int num = 0;; ++num)
+      {
+        objectName = objectClassName + "_" + QString::number(num);
+        if(!tabsByName.contains(objectName))
+          break;
+      }
+  }
+
+  // create tab data
   TabData& tabData = *tabs.insert(widget, TabData());
+  tabData.objectName = objectName;
   tabData.hidden = false;
   tabData.action = 0;
+  tabsByName.insert(objectName, widget);
 
+  //
   addTab(widget, position ? dynamic_cast<QTabContainer*>(position->parent()->parent()) : 0, insertPolicy, -1);
 }
 
@@ -506,6 +530,7 @@ void QTabFramework::removeTab(QWidget* widget)
   }
   if(tabData.action)
     delete tabData.action;
+  tabsByName.remove(tabData.objectName);
   tabs.erase(it);
 }
 
@@ -538,11 +563,33 @@ QAction* QTabFramework::toggleViewAction(QWidget* widget)
 
 void QTabFramework::restoreLayout(const QByteArray& layout)
 {
+  if(layout.isEmpty())
+    return;
+
   // close all floating windows
+  for(QList<QTabWindow*>::Iterator i = floatingWindows.begin(), end = floatingWindows.end(); i != end; ++i)
+  {
+    QTabWindow* tabWindow = *i;
+    if(tabWindow != this)
+    {
+      tabWindow->close();
+      delete tabWindow;
+    }
+  }
+  floatingWindows.clear();
+  floatingWindows.append(this);
 
   // hide all tabs
+  hideAllTabs();
+  QWidget* centralWidget = this->centralWidget();
+  if(centralWidget)
+  {
+    setCentralWidget(0);
+    delete centralWidget;
+  }
 
   // restore local layout
+  //readLayout(layout, );
 
   // create floating windows
 
