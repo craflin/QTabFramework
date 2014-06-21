@@ -11,9 +11,6 @@ class QTabWindow : public QMainWindow
 public:
   QTabWindow(QTabFramework* tabFramework);
 
-signals:
-  void activated();
-
 protected:
   virtual void closeEvent(QCloseEvent* event);
   virtual void changeEvent(QEvent* event);
@@ -95,7 +92,6 @@ private:
   QHash<QWidget*, TabData> tabs;
   QHash<QString, TabData*> tabsByName;
   QSignalMapper signalMapper;
-  QSignalMapper activatedSignalMapper;
 
   QWidget* moveTabWidget;
   QTabContainer* moveTabPosition;

@@ -515,7 +515,7 @@ void QTabWindow::closeEvent(QCloseEvent* event)
 void QTabWindow::changeEvent(QEvent* event)
 {
   if(event->type() == QEvent::ActivationChange && isActiveWindow())
-    emit activated();
+    tabFramework->updateWindowZOrder(this);
 
   QMainWindow::changeEvent(event);
 }
@@ -524,9 +524,6 @@ QTabFramework::QTabFramework() : QTabWindow(this), moveTabWidget(0)
 {
   connect(&signalMapper, SIGNAL(mapped(QWidget*)), this, SLOT(toggleVisibility(QWidget*)));
   floatingWindows.append(this);
-  connect(&activatedSignalMapper, SIGNAL(mapped(QWidget*)), this, SLOT(updateWindowZOrder(QWidget*)));
-  activatedSignalMapper.setMapping(this, this);
-  connect(this, SIGNAL(activated()), &activatedSignalMapper, SLOT(map()));
 }
 
 QTabFramework::~QTabFramework()
@@ -1013,8 +1010,6 @@ QTabWindow* QTabFramework::createWindow()
   QTabWindow* tabWindow = new QTabWindow(this);
   tabWindow->setAttribute(Qt::WA_DeleteOnClose);
   floatingWindows.append(tabWindow);
-  activatedSignalMapper.setMapping(tabWindow, tabWindow);
-  connect(tabWindow, SIGNAL(activated()), &activatedSignalMapper, SLOT(map()));
   return tabWindow;
 }
 
