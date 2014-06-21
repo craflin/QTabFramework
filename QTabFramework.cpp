@@ -96,34 +96,71 @@ void QTabDrawer::closeTab(int index)
   tabContainer->tabWindow->tabFramework->hideTab(widget);
 }
 
-QTabSplitter::QTabSplitter(Qt::Orientation orientation, QWidget* parent) : QSplitter(orientation, parent)
+QTabSplitter::QTabSplitter(Qt::Orientation orientation, QWidget* parent, QTabWindow* tabWindow) : QSplitter(orientation, parent), tabWindow(tabWindow)
 {
   setChildrenCollapsible(false);
 }
 
-void QTabSplitter::writeLayout(QByteArray& buffer)
+void QTabSplitter::writeLayout(QDataStream& stream)
 {
-  quint32 type = QTabFramework::SplitterType;
-  buffer.append((const char*)&type, sizeof(quint32));
-  quint32 orientation = this->orientation();
-  buffer.append((const char*)&orientation, sizeof(quint32));
-  QByteArray state = saveState();
-  quint32 stateSize = state.size();
-  buffer.append((const char*)&stateSize, sizeof(quint32));
-  buffer.append(state);
+  stream << saveState();
+  stream << (quint32)orientation();
   for(int i = 0, count = this->count(); i < count; ++i)
   {
     QWidget* widget = this->widget(i);
     QTabSplitter* tabSplitter = dynamic_cast<QTabSplitter*>(widget);
     if(tabSplitter)
-      tabSplitter->writeLayout(buffer);
+    {
+      stream << (quint32)QTabFramework::SplitterType;
+      tabSplitter->writeLayout(stream);
+    }
     else
     {
       QTabContainer* tabContainer = dynamic_cast<QTabContainer*>(widget);
       if(tabContainer)
-        tabContainer->writeLayout(buffer);
+      {
+        stream << (quint32)QTabFramework::ContainerType;
+        tabContainer->writeLayout(stream);
+      }
     }
   }
+  stream << (quint32)QTabFramework::NoneType;
+}
+
+void QTabSplitter::readLayout(QDataStream& stream)
+{
+  QByteArray state;
+  stream >> state;
+  quint32 orientation;
+  stream >> orientation;
+  setOrientation((Qt::Orientation)orientation);
+  quint32 type;
+  stream >> type;
+  while(type != QTabFramework::NoneType)
+  {
+    switch((QTabFramework::LayoutType)type)
+    {
+    case QTabFramework::SplitterType:
+      {
+        QTabSplitter* tabSplitter = new QTabSplitter(Qt::Horizontal, this, tabWindow);
+        addWidget(tabSplitter);
+        tabSplitter->readLayout(stream);
+      }
+      break;
+    case QTabFramework::ContainerType:
+      {
+        QTabContainer* tabContainer = new QTabContainer(this, tabWindow);
+        addWidget(tabContainer);
+        tabContainer->readLayout(stream);
+      }
+      break;
+    default:
+      Q_ASSERT(false);
+      break;
+    }
+    stream >> type;
+  }
+  restoreState(state);
 }
 
 QTabContainer::QTabContainer(QWidget* parent, QTabWindow* tabWindow) : QTabWidget(parent), tabWindow(tabWindow)
@@ -199,22 +236,40 @@ QRect QTabContainer::findDropRect(const QPoint& globalPos, QTabFramework::Insert
   return result;
 }
 
-void QTabContainer::writeLayout(QByteArray& buffer)
+void QTabContainer::writeLayout(QDataStream& stream)
 {
-  quint32 type = QTabFramework::ContainerType;
-  buffer.append((const char*)&type, sizeof(quint32));
-  quint32 currentIndex = this->currentIndex();
-  buffer.append((const char*)&currentIndex, sizeof(quint32));
-  quint32 tabCount = this->count();
-  buffer.append((const char*)&tabCount, sizeof(quint32));
-  for(quint32 i = 0; i < tabCount; ++i)
+  stream << (quint32)currentIndex();
+  for(int i = 0, count = this->count(); i < count; ++i)
   {
+    stream << (quint32)QTabFramework::TabType;
     QWidget* widget = this->widget(i);
-    QString objectName = widget->objectName();
-    quint32 objectNameLen = objectName.length();
-    buffer.append((const char*)&objectNameLen, sizeof(quint32));
-    buffer.append(objectName.toUtf8().constData());
+    QString tabObjectName = tabWindow->tabFramework->tabObjectName(widget);
+    stream << tabObjectName;
   }
+  stream << (quint32)QTabFramework::NoneType;
+}
+
+void QTabContainer::readLayout(QDataStream& stream)
+{
+  quint32 currentIndex;
+  stream >> currentIndex;
+  quint32 type;
+  stream >> type;
+  while(type != QTabFramework::NoneType)
+  {
+    if(type == QTabFramework::TabType)
+    {
+      QString objectName;
+      stream >> objectName;
+      tabWindow->tabFramework->unhideTab(objectName, this);
+    }
+    else
+    {
+      Q_ASSERT(false);
+    }
+    stream >> type;
+  }
+  setCurrentIndex(currentIndex);
 }
 
 void QTabContainer::dragEnterEvent(QDragEnterEvent* event)
@@ -363,29 +418,59 @@ void QTabWindow::setDropOverlayRect(const QRect& globalRect, const QRect& global
   }
 }
 
-void QTabWindow::writeLayout(QByteArray& buffer)
+void QTabWindow::writeLayout(QDataStream& stream)
 {
-  quint32 type = WindowType;
-  buffer.append((const char*)&type, sizeof(quint32));
-  QByteArray geometry = saveGeometry();
-  quint32 geomSize = geometry.size();
-  buffer.append((const char*)&geomSize, sizeof(quint32));
-  buffer.append(geometry);
-  QByteArray state = saveState();
-  quint32 stateSize = state.size();
-  buffer.append((const char*)&stateSize, sizeof(quint32));
-  buffer.append(state);
-
+  stream << saveGeometry();
+  stream << saveState();
   QWidget* widget = centralWidget();
   QTabSplitter* tabSplitter = dynamic_cast<QTabSplitter*>(widget);
   if(tabSplitter)
-    tabSplitter->writeLayout(buffer);
+  {
+    stream << (quint32)QTabFramework::SplitterType;
+    tabSplitter->writeLayout(stream);
+  }
   else
   {
     QTabContainer* tabContainer = dynamic_cast<QTabContainer*>(widget);
     if(tabContainer)
-      tabContainer->writeLayout(buffer);
+    {
+      stream << (quint32)QTabFramework::ContainerType;
+      tabContainer->writeLayout(stream);
+    }
+    else
+      stream << (quint32)QTabFramework::NoneType;
   }
+}
+
+void QTabWindow::readLayout(QDataStream& stream)
+{
+  QByteArray geometry, state;
+  stream >> geometry;
+  stream >> state;
+  quint32 type;
+  stream >> type;
+  switch((QTabFramework::LayoutType)type)
+  {
+  case QTabFramework::SplitterType:
+    {
+      QTabSplitter* tabSplitter = new QTabSplitter(Qt::Horizontal, this, this);
+      setCentralWidget(tabSplitter);
+      tabSplitter->readLayout(stream);
+    }
+    break;
+  case QTabFramework::ContainerType:
+    {
+      QTabContainer* tabContainer = new QTabContainer(this, this);
+      setCentralWidget(tabContainer);
+      tabContainer->readLayout(stream);
+    }
+    break;
+  default:
+    Q_ASSERT(false);
+    break;
+  }
+  restoreGeometry(geometry);
+  restoreState(state);
 }
 
 void QTabWindow::hideAllTabs()
@@ -423,6 +508,8 @@ void QTabWindow::closeEvent(QCloseEvent* event)
   hideAllTabs();
 
   QMainWindow::closeEvent(event);
+  
+  tabFramework->removeWindow(this);
 }
 
 void QTabWindow::changeEvent(QEvent* event)
@@ -486,10 +573,11 @@ void QTabFramework::addTab(QWidget* widget, InsertPolicy insertPolicy, QWidget* 
 
   // create tab data
   TabData& tabData = *tabs.insert(widget, TabData());
+  tabData.widget = widget;
   tabData.objectName = objectName;
   tabData.hidden = false;
   tabData.action = 0;
-  tabsByName.insert(objectName, widget);
+  tabsByName.insert(objectName, &tabData);
 
   //
   addTab(widget, position ? dynamic_cast<QTabContainer*>(position->parent()->parent()) : 0, insertPolicy, -1);
@@ -566,13 +654,20 @@ void QTabFramework::restoreLayout(const QByteArray& layout)
   if(layout.isEmpty())
     return;
 
+  // check format version
+  QDataStream dataStream(layout);
+  quint32 version;
+  dataStream >> version;
+  if(version != 100)
+    return;
+
   // close all floating windows
   for(QList<QTabWindow*>::Iterator i = floatingWindows.begin(), end = floatingWindows.end(); i != end; ++i)
   {
     QTabWindow* tabWindow = *i;
     if(tabWindow != this)
     {
-      tabWindow->close();
+      tabWindow->hideAllTabs();
       delete tabWindow;
     }
   }
@@ -589,21 +684,44 @@ void QTabFramework::restoreLayout(const QByteArray& layout)
   }
 
   // restore local layout
-  //readLayout(layout, );
+  quint32 type;
+  dataStream >> type;
+  if(type == WindowType)
+    readLayout(dataStream);
 
   // create floating windows
-
+  dataStream >> type;
+  while(type != NoneType)
+  {
+    if(type == WindowType)
+    {
+      QTabWindow* tabWindow = createWindow();
+      tabWindow->readLayout(dataStream);
+      tabWindow->show();
+    }
+    else
+    {
+      Q_ASSERT(false);
+    }
+    dataStream >> type;
+  }
 }
 
 QByteArray QTabFramework::saveLayout()
 {
   QByteArray result;
-  writeLayout(result);
-  quint32 windowCount = floatingWindows.size() - 1;
-  result.append((const char*)&windowCount, sizeof(quint32));
+  QDataStream dataStream(&result, QIODevice::WriteOnly);
+  quint32 version = 100;
+  dataStream << version;
+  dataStream << (quint32)WindowType;
+  writeLayout(dataStream);
   for(QList<QTabWindow*>::Iterator i = floatingWindows.begin(), end = floatingWindows.end(); i != end; ++i)
     if(*i != this)
-      (*i)->writeLayout(result);
+    {
+      dataStream << (quint32)WindowType;
+      (*i)->writeLayout(dataStream);
+    }
+  dataStream << (quint32)NoneType;
   return result;
 }
 
@@ -614,10 +732,7 @@ void QTabFramework::addTab(QWidget* widget, QTabContainer* container, InsertPoli
   {
     if(centralWidget())
     {
-      QTabWindow* tabWindow = new QTabWindow(this);
-      floatingWindows.append(tabWindow);
-      activatedSignalMapper.setMapping(tabWindow, tabWindow);
-      connect(tabWindow, SIGNAL(activated()), &activatedSignalMapper, SLOT(map()));
+      QTabWindow* tabWindow = this->createWindow();
       QTabContainer* container = new QTabContainer(tabWindow, tabWindow);
       container->addTab(widget, widget->windowTitle());
       tabWindow->setCentralWidget(container);
@@ -676,7 +791,7 @@ void QTabFramework::addTab(QWidget* widget, QTabContainer* container, InsertPoli
       }
       else
       {
-        QTabSplitter* newSplitter = new QTabSplitter(orientation, splitter ? (QWidget*)splitter : (QWidget*)container->tabWindow);
+        QTabSplitter* newSplitter = new QTabSplitter(orientation, splitter ? (QWidget*)splitter : (QWidget*)container->tabWindow, container->tabWindow);
         QTabContainer* newContainer = new QTabContainer(newSplitter, container->tabWindow);
         int containerIndex = -1;
         QList<int> sizes;
@@ -783,6 +898,29 @@ void QTabFramework::updateWindowZOrder(QWidget* widget)
   floatingWindows.append(tabWindow);
 }
 
+QString QTabFramework::tabObjectName(QWidget* widget)
+{
+  QHash<QWidget*, TabData>::Iterator it = tabs.find(widget);
+  if(it == tabs.end())
+    return QString();
+  TabData& tabData = it.value();
+  return tabData.objectName;
+}
+
+void QTabFramework::unhideTab(const QString& objectName, QTabContainer* position)
+{
+  QHash<QString, TabData*>::Iterator it = tabsByName.find(objectName);
+  if(it == tabsByName.end())
+    return;
+  TabData& tabData = *it.value();
+  if(!tabData.hidden)
+    return;
+  position->addTab(tabData.widget, tabData.widget->windowTitle());
+  tabData.hidden = false;
+  if(tabData.action)
+    tabData.action->setChecked(!tabData.hidden);
+}
+
 void QTabFramework::removeContainerIfEmpty(QTabContainer* tabContainer)
 {
   if(tabContainer->count() == 0)
@@ -868,6 +1006,16 @@ void QTabFramework::hideTab(QWidget* widget, bool removeContainerIfEmpty)
   tabData.hidden = true;
   if(tabData.action)
     tabData.action->setChecked(!tabData.hidden);
+}
+
+QTabWindow* QTabFramework::createWindow()
+{
+  QTabWindow* tabWindow = new QTabWindow(this);
+  tabWindow->setAttribute(Qt::WA_DeleteOnClose);
+  floatingWindows.append(tabWindow);
+  activatedSignalMapper.setMapping(tabWindow, tabWindow);
+  connect(tabWindow, SIGNAL(activated()), &activatedSignalMapper, SLOT(map()));
+  return tabWindow;
 }
 
 void QTabFramework::removeWindow(QTabWindow* window)

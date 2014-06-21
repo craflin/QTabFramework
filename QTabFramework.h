@@ -21,9 +21,11 @@ protected:
 private:
   enum LayoutType
   {
+    NoneType,
     WindowType,
     SplitterType,
     ContainerType,
+    TabType,
   };
 
 private:
@@ -36,7 +38,8 @@ private slots:
 
 private:
   void setDropOverlayRect(const QRect& globalRect, const QRect& tabRect = QRect());
-  void writeLayout(QByteArray& buffer);
+  void writeLayout(QDataStream& stream);
+  void readLayout(QDataStream& stream);
   void hideAllTabs();
 
   friend class QTabContainer;
@@ -81,6 +84,7 @@ protected:
 private:
   struct TabData
   {
+    QWidget* widget;
     QString objectName;
     bool hidden;
     QAction* action;
@@ -89,7 +93,7 @@ private:
 private:
   QList<QTabWindow*> floatingWindows;
   QHash<QWidget*, TabData> tabs;
-  QHash<QString, QWidget*> tabsByName;
+  QHash<QString, TabData*> tabsByName;
   QSignalMapper signalMapper;
   QSignalMapper activatedSignalMapper;
 
@@ -108,8 +112,11 @@ private:
   void moveTab(QWidget* widget, QTabContainer* position, InsertPolicy insertPolicy, int tabIndex);
   void moveTabLater(QWidget* widget, QTabContainer* position, InsertPolicy insertPolicy, int tabIndex);
   void removeContainerIfEmpty(QTabContainer* tabContainer);
+  QTabWindow* createWindow();
   void removeWindow(QTabWindow* window);
   void hideTab(QWidget* widget, bool removeContainerIfEmpty);
+  QString tabObjectName(QWidget* widget);
+  void unhideTab(const QString& objectName, QTabContainer* position);
 
   friend class QTabDrawer;
   friend class QTabContainer;
@@ -119,10 +126,14 @@ private:
 class QTabSplitter : public QSplitter
 {
 public:
-  QTabSplitter(Qt::Orientation orientation, QWidget* parent);
+  QTabSplitter(Qt::Orientation orientation, QWidget* parent, QTabWindow* tabWindow);
 
 private:
-  void writeLayout(QByteArray& buffer);
+  QTabWindow* tabWindow;
+
+private:
+  void writeLayout(QDataStream& stream);
+  void readLayout(QDataStream& stream);
 
   friend class QTabWindow;
 };
@@ -144,7 +155,8 @@ private:
 private:
   QRect findDropRect(const QPoint& globalPos, QTabFramework::InsertPolicy& insertPolicy, QRect& tabRect, int& tabIndex);
 
-  void writeLayout(QByteArray& buffer);
+  void writeLayout(QDataStream& stream);
+  void readLayout(QDataStream& stream);
 
   friend class QTabDrawer;
   friend class QTabFramework;
