@@ -170,6 +170,20 @@ QTabContainer::QTabContainer(QWidget* parent, QTabWindow* tabWindow) : QTabWidge
   setAcceptDrops(true);
 }
 
+int QTabContainer::addTab(QWidget* widget, const QString& label)
+{
+  int index = QTabWidget::addTab(widget, label);
+  setTabToolTip(index, label);
+  return index;
+}
+
+int QTabContainer::insertTab(int index, QWidget* widget, const QString& label)
+{
+  index = QTabWidget::insertTab(index, widget, label);
+  setTabToolTip(index, label);
+  return index;
+}
+
 QRect QTabContainer::findDropRect(const QPoint& globalPos, QTabFramework::InsertPolicy& insertPolicy, QRect& tabRectResult, int& tabIndex)
 {
   QPoint pos = mapFromGlobal(globalPos);
@@ -706,7 +720,7 @@ void QTabFramework::restoreLayout(const QByteArray& layout)
   for(QList<quint32>::Iterator i = zOrder.begin(), end = zOrder.end(); i != end; ++i)
   {
     quint32 index = *i;
-    if(index < floatingWindows.size())
+    if(index < (quint32)floatingWindows.size())
     {
       QTabWindow* tabWindow = floatingWindows.at(index);
       floatingWindowsZOrder.append(tabWindow);
@@ -1035,6 +1049,7 @@ void QTabFramework::hideTab(QWidget* widget, bool removeContainerIfEmpty)
 QTabWindow* QTabFramework::createWindow()
 {
   QTabWindow* tabWindow = new QTabWindow(this);
+  tabWindow->setWindowIcon(windowIcon());
   tabWindow->setAttribute(Qt::WA_DeleteOnClose);
   tabWindow->installEventFilter(this);
   floatingWindows.append(tabWindow);
@@ -1094,7 +1109,9 @@ bool QTabFramework::eventFilter(QObject* obj, QEvent* event)
         if(tabContainer)
         {
           int index = tabContainer->indexOf(widget);
-          tabContainer->setTabText(index, widget->windowTitle());
+          QString title = widget->windowTitle();
+          tabContainer->setTabText(index, title);
+          tabContainer->setTabToolTip(index, title);
         }
       }
     }

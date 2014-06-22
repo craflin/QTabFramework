@@ -142,6 +142,9 @@ class QTabContainer : public QTabWidget
 public:
   QTabContainer(QWidget* parent, QTabWindow* tabWindow);
 
+  int addTab(QWidget* widget, const QString& label);
+  int insertTab(int index, QWidget* widget, const QString& label);
+
 protected:
   virtual void dragEnterEvent(QDragEnterEvent* event);
   virtual void dragLeaveEvent(QDragLeaveEvent* event);
