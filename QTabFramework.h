@@ -78,6 +78,7 @@ public:
 
 protected:
   virtual void closeEvent(QCloseEvent* event);
+  virtual void showEvent(QShowEvent* event);
   virtual bool eventFilter(QObject* obj, QEvent* event);
 
 private:
@@ -103,7 +104,7 @@ private:
 private slots:
   void executeMoveTab();
   void toggleVisibility(QWidget* widget);
-  void updateWindowZOrder(QWidget* widget);
+  void showFloatingWindows();
 
 private:
   void addTab(QWidget* widget, QTabContainer* position, InsertPolicy insertPolicy, int tabIndex);
@@ -115,6 +116,7 @@ private:
   void hideTab(QWidget* widget, bool removeContainerIfEmpty);
   QString tabObjectName(QWidget* widget);
   void unhideTab(const QString& objectName, QTabContainer* position);
+  void updateWindowZOrder(QWidget* widget);
 
   friend class QTabDrawer;
   friend class QTabContainer;

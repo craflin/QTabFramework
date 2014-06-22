@@ -705,7 +705,8 @@ void QTabFramework::restoreLayout(const QByteArray& layout)
     {
       QTabWindow* tabWindow = createWindow();
       tabWindow->readLayout(dataStream);
-      tabWindow->show();
+      if(QMainWindow::isVisible())
+        tabWindow->show();
     }
     else
     {
@@ -745,7 +746,8 @@ void QTabFramework::addTab(QWidget* widget, QTabContainer* container, InsertPoli
       QTabContainer* container = new QTabContainer(tabWindow, tabWindow);
       container->addTab(widget, widget->windowTitle());
       tabWindow->setCentralWidget(container);
-      tabWindow->show();
+      if(QMainWindow::isVisible())
+        tabWindow->show();
     }
     else
     {
@@ -907,6 +909,20 @@ void QTabFramework::updateWindowZOrder(QWidget* widget)
   floatingWindows.append(tabWindow);
 }
 
+void QTabFramework::showFloatingWindows()
+{
+  bool show = QMainWindow::isVisible();
+  QList<QTabWindow*> floatingWindows = this->floatingWindows;
+  for(QList<QTabWindow*>::Iterator i = floatingWindows.begin(), end = floatingWindows.end(); i != end; ++i)
+  {
+    QTabWindow* tabWindow = *i;
+    if(tabWindow != this)
+      show ? tabWindow->show() : tabWindow->hide();
+  }
+  if(show)
+    raise();
+}
+
 QString QTabFramework::tabObjectName(QWidget* widget)
 {
   QHash<QWidget*, TabData>::Iterator it = tabs.find(widget);
@@ -1054,6 +1070,13 @@ void QTabFramework::closeEvent(QCloseEvent* event)
   tabsByName.clear();
 
   QMainWindow::closeEvent(event); // skip QTabWindow closeEvent handler
+}
+
+void QTabFramework::showEvent(QShowEvent* event)
+{
+  QTimer::singleShot(0, this, SLOT(showFloatingWindows()));
+
+  QTabWindow::showEvent(event);
 }
 
 bool QTabFramework::eventFilter(QObject* obj, QEvent* event)
