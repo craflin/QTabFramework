@@ -575,6 +575,7 @@ void QTabFramework::addTab(QWidget* widget, InsertPolicy insertPolicy, QWidget* 
   tabData.hidden = false;
   tabData.action = 0;
   tabsByName.insert(objectName, &tabData);
+  widget->installEventFilter(this);
 
   //
   addTab(widget, position ? dynamic_cast<QTabContainer*>(position->parent()->parent()) : 0, insertPolicy, -1);
@@ -617,6 +618,7 @@ void QTabFramework::removeTab(QWidget* widget)
     delete tabData.action;
   tabsByName.remove(tabData.objectName);
   tabs.erase(it);
+  widget->removeEventFilter(this);
 }
 
 void QTabFramework::hideTab(QWidget* widget)
@@ -627,6 +629,15 @@ void QTabFramework::hideTab(QWidget* widget)
   TabData& tabData = it.value();
   if(!tabData.hidden)
     hideTab(widget, true);
+}
+
+bool QTabFramework::isVisible(QWidget* widget) const
+{
+  QHash<QWidget*, TabData>::ConstIterator it = tabs.find(widget);
+  if(it == tabs.end())
+    return false;
+  const TabData& tabData = it.value();
+  return !tabData.hidden;
 }
 
 QAction* QTabFramework::toggleViewAction(QWidget* widget)
@@ -724,10 +735,11 @@ QByteArray QTabFramework::saveLayout()
 
 void QTabFramework::addTab(QWidget* widget, QTabContainer* container, InsertPolicy insertPolicy, int tabIndex)
 {
-  bool createWindow = !container || insertPolicy == InsertFloating;
+  QWidget* centralWidget = this->centralWidget();
+  bool createWindow = !container || insertPolicy == InsertFloating || !centralWidget;
   if(createWindow)
   {
-    if(centralWidget())
+    if(centralWidget)
     {
       QTabWindow* tabWindow = this->createWindow();
       QTabContainer* container = new QTabContainer(tabWindow, tabWindow);
@@ -1026,6 +1038,40 @@ void QTabFramework::closeEvent(QCloseEvent* event)
   floatingWindows.removeOne(this);
   qDeleteAll(floatingWindows);
   floatingWindows.clear();
+  QWidget* centralWidget = this->centralWidget();
+  if(centralWidget)
+  {
+    setCentralWidget(0);
+    delete centralWidget;
+  }
+  for(QHash<QWidget*, TabData>::Iterator i = tabs.begin(), end = tabs.end(); i != end; ++i)
+  {
+    TabData& tabData = i.value();
+    if(tabData.hidden)
+      delete i.key();
+  }
+  tabs.clear();
+  tabsByName.clear();
 
   QMainWindow::closeEvent(event); // skip QTabWindow closeEvent handler
+}
+
+bool QTabFramework::eventFilter(QObject* obj, QEvent* event)
+{
+  if(event->type() == QEvent::WindowTitleChange)
+  {
+    QWidget* widget = dynamic_cast<QWidget*>(obj);
+    QHash<QWidget*, TabData>::Iterator it = tabs.find(widget);
+    if(it != tabs.end())
+    {
+      QTabContainer* tabContainer = dynamic_cast<QTabContainer*>(widget->parent()->parent());
+      if(tabContainer)
+      {
+        int index = tabContainer->indexOf(widget);
+        tabContainer->setTabText(index, widget->windowTitle());
+      }
+    }
+  }
+
+  return QMainWindow::eventFilter(obj, event);
 }

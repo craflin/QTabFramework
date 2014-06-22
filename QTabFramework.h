@@ -69,6 +69,7 @@ public:
   void moveTab(QWidget* widget, InsertPolicy insertPolicy = InsertFloating, QWidget* position = 0);
   void removeTab(QWidget* widget);
   void hideTab(QWidget* widget);
+  bool isVisible(QWidget* widget) const;
 
   QAction* toggleViewAction(QWidget* widget);
 
@@ -77,6 +78,7 @@ public:
 
 protected:
   virtual void closeEvent(QCloseEvent* event);
+  virtual bool eventFilter(QObject* obj, QEvent* event);
 
 private:
   struct TabData
