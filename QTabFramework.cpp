@@ -166,7 +166,7 @@ void QTabSplitter::readLayout(QDataStream& stream)
 QTabContainer::QTabContainer(QWidget* parent, QTabWindow* tabWindow) : QTabWidget(parent), tabWindow(tabWindow)
 {
   setTabBar(new QTabDrawer(this));
-  setDocumentMode(true);
+  //setDocumentMode(true);
   setAcceptDrops(true);
   connect(this, SIGNAL(currentChanged(int)), this, SLOT(handleCurrentChanged(int)));
 }
