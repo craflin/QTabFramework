@@ -168,7 +168,7 @@ QTabContainer::QTabContainer(QWidget* parent, QTabWindow* tabWindow) : QTabWidge
   setTabBar(new QTabDrawer(this));
   setDocumentMode(true);
   setAcceptDrops(true);
-  connect(this, SIGNAL(currentChanged(int)), this, SLOT(updateFocus(int)));
+  connect(this, SIGNAL(currentChanged(int)), this, SLOT(handleCurrentChanged(int)));
 }
 
 int QTabContainer::addTab(QWidget* widget, const QString& label)
@@ -185,11 +185,27 @@ int QTabContainer::insertTab(int index, QWidget* widget, const QString& label)
   return index;
 }
 
-void QTabContainer::updateFocus(int index)
+void QTabContainer::removeTab(int index)
+{
+  QWidget* widget = this->widget(index);
+  QTabWidget::removeTab(index);
+  if(widget == tabWindow->focusTab)
+    tabWindow->tabFramework->handleFocusChanged(widget, this->widget(this->currentIndex()));
+}
+
+void QTabContainer::handleCurrentChanged(int index)
 {
   QWidget* widget = this->widget(index);
   if(widget)
-    widget->setFocus();
+  {
+    if(tabWindow->isActiveWindow())
+      widget->setFocus();
+    else
+    {
+      tabWindow->focusTab = widget;
+      tabWindow->setWindowTitle(widget->windowTitle());
+    }
+  }
 }
 
 QRect QTabContainer::findDropRect(const QPoint& globalPos, QTabFramework::InsertPolicy& insertPolicy, QRect& tabRectResult, int& tabIndex)
@@ -1150,15 +1166,19 @@ bool QTabFramework::eventFilter(QObject* obj, QEvent* event)
       QHash<QWidget*, TabData>::Iterator it = tabs.find(widget);
       if(it != tabs.end())
       {
-        QTabContainer* tabContainer = dynamic_cast<QTabContainer*>(widget->parent()->parent());
-        if(tabContainer)
+        QWidget* widgetParent = dynamic_cast<QWidget*>(widget->parent());
+        if(widgetParent)
         {
-          int index = tabContainer->indexOf(widget);
-          QString title = widget->windowTitle();
-          tabContainer->setTabText(index, title);
-          tabContainer->setTabToolTip(index, title);
-          if(tabContainer->tabWindow->focusTab == widget)
-            tabContainer->tabWindow->setWindowTitle(title);
+          QTabContainer* tabContainer = dynamic_cast<QTabContainer*>(widgetParent->parent());
+          if(tabContainer)
+          {
+            int index = tabContainer->indexOf(widget);
+            QString title = widget->windowTitle();
+            tabContainer->setTabText(index, title);
+            tabContainer->setTabToolTip(index, title);
+            if(tabContainer->tabWindow->focusTab == widget)
+              tabContainer->tabWindow->setWindowTitle(title);
+          }
         }
       }
     }

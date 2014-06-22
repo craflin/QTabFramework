@@ -148,6 +148,7 @@ public:
 
   int addTab(QWidget* widget, const QString& label);
   int insertTab(int index, QWidget* widget, const QString& label);
+  void removeTab(int index);
 
 protected:
   virtual void dragEnterEvent(QDragEnterEvent* event);
@@ -159,7 +160,7 @@ private:
   QTabWindow* tabWindow;
 
 private slots:
-  void updateFocus(int index);
+  void handleCurrentChanged(int index);
 
 private:
   QRect findDropRect(const QPoint& globalPos, QTabFramework::InsertPolicy& insertPolicy, QRect& tabRect, int& tabIndex);
