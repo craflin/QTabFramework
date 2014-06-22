@@ -1184,6 +1184,9 @@ bool QTabFramework::eventFilter(QObject* obj, QEvent* event)
             tabContainer->setTabToolTip(index, title);
             if(tabContainer->tabWindow->focusTab == widget)
               tabContainer->tabWindow->setWindowTitle(title);
+            TabData& tabData = it.value();
+            if(tabData.action)
+              tabData.action->setText(title);
           }
         }
       }
