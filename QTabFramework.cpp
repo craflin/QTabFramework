@@ -199,8 +199,14 @@ void QTabContainer::handleCurrentChanged(int index)
   if(widget)
   {
     if(tabWindow->isActiveWindow())
-      widget->setFocus();
-    else
+    {
+      QWidget* focusWidget = widget->focusWidget();
+      if(focusWidget)
+        focusWidget->setFocus();
+      else
+        widget->setFocus();
+    }
+    else if(tabWindow != tabWindow->tabFramework)
     {
       tabWindow->focusTab = widget;
       tabWindow->setWindowTitle(widget->windowTitle());
