@@ -523,7 +523,6 @@ void QTabWindow::changeEvent(QEvent* event)
 QTabFramework::QTabFramework() : QTabWindow(this), moveTabWidget(0)
 {
   connect(&signalMapper, SIGNAL(mapped(QWidget*)), this, SLOT(toggleVisibility(QWidget*)));
-  floatingWindows.append(this);
 }
 
 QTabFramework::~QTabFramework()
@@ -535,7 +534,6 @@ QTabFramework::~QTabFramework()
       delete i.key();
   }
 
-  floatingWindows.removeOne(this);
   qDeleteAll(floatingWindows);
 }
 
@@ -673,14 +671,10 @@ void QTabFramework::restoreLayout(const QByteArray& layout)
   for(QList<QTabWindow*>::Iterator i = floatingWindows.begin(), end = floatingWindows.end(); i != end; ++i)
   {
     QTabWindow* tabWindow = *i;
-    if(tabWindow != this)
-    {
-      tabWindow->hideAllTabs();
-      delete tabWindow;
-    }
+    tabWindow->hideAllTabs();
+    delete tabWindow;
   }
   floatingWindows.clear();
-  floatingWindows.append(this);
 
   // hide all tabs
   hideAllTabs();
@@ -725,11 +719,10 @@ QByteArray QTabFramework::saveLayout()
   dataStream << (quint32)WindowType;
   writeLayout(dataStream);
   for(QList<QTabWindow*>::Iterator i = floatingWindows.begin(), end = floatingWindows.end(); i != end; ++i)
-    if(*i != this)
-    {
-      dataStream << (quint32)WindowType;
-      (*i)->writeLayout(dataStream);
-    }
+  {
+    dataStream << (quint32)WindowType;
+    (*i)->writeLayout(dataStream);
+  }
   dataStream << (quint32)NoneType;
   return result;
 }
@@ -902,6 +895,8 @@ void QTabFramework::toggleVisibility(QWidget* widget)
 
 void QTabFramework::updateWindowZOrder(QWidget* widget)
 {
+  if(widget == this)
+    return;
   QTabWindow* tabWindow = dynamic_cast<QTabWindow*>(widget);
   if(!tabWindow)
     return;
@@ -916,8 +911,7 @@ void QTabFramework::showFloatingWindows()
   for(QList<QTabWindow*>::Iterator i = floatingWindows.begin(), end = floatingWindows.end(); i != end; ++i)
   {
     QTabWindow* tabWindow = *i;
-    if(tabWindow != this)
-      show ? tabWindow->show() : tabWindow->hide();
+    show ? tabWindow->show() : tabWindow->hide();
   }
   if(show)
     raise();
@@ -1051,7 +1045,6 @@ void QTabFramework::removeWindow(QTabWindow* window)
 
 void QTabFramework::closeEvent(QCloseEvent* event)
 {
-  floatingWindows.removeOne(this);
   qDeleteAll(floatingWindows);
   floatingWindows.clear();
   QWidget* centralWidget = this->centralWidget();
