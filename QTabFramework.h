@@ -13,7 +13,6 @@ public:
 
 protected:
   virtual void closeEvent(QCloseEvent* event);
-  virtual void changeEvent(QEvent* event);
 
 private:
   enum LayoutType
@@ -92,6 +91,7 @@ private:
 
 private:
   QList<QTabWindow*> floatingWindows;
+  QList<QTabWindow*> floatingWindowsZOrder;
   QHash<QWidget*, TabData> tabs;
   QHash<QString, TabData*> tabsByName;
   QSignalMapper signalMapper;
@@ -116,7 +116,6 @@ private:
   void hideTab(QWidget* widget, bool removeContainerIfEmpty);
   QString tabObjectName(QWidget* widget);
   void unhideTab(const QString& objectName, QTabContainer* position);
-  void updateWindowZOrder(QWidget* widget);
 
   friend class QTabDrawer;
   friend class QTabContainer;

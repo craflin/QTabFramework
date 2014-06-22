@@ -512,14 +512,6 @@ void QTabWindow::closeEvent(QCloseEvent* event)
   tabFramework->removeWindow(this);
 }
 
-void QTabWindow::changeEvent(QEvent* event)
-{
-  if(event->type() == QEvent::ActivationChange && isActiveWindow())
-    tabFramework->updateWindowZOrder(this);
-
-  QMainWindow::changeEvent(event);
-}
-
 QTabFramework::QTabFramework() : QTabWindow(this), moveTabWidget(0)
 {
   connect(&signalMapper, SIGNAL(mapped(QWidget*)), this, SLOT(toggleVisibility(QWidget*)));
@@ -664,7 +656,7 @@ void QTabFramework::restoreLayout(const QByteArray& layout)
   QDataStream dataStream(layout);
   quint32 version;
   dataStream >> version;
-  if(version != 100)
+  if(version != 101)
     return;
 
   // close all floating windows
@@ -708,22 +700,41 @@ void QTabFramework::restoreLayout(const QByteArray& layout)
     }
     dataStream >> type;
   }
+  QList<quint32> zOrder;
+  dataStream >> zOrder;
+  floatingWindowsZOrder.clear();
+  for(QList<quint32>::Iterator i = zOrder.begin(), end = zOrder.end(); i != end; ++i)
+  {
+    quint32 index = *i;
+    if(index < floatingWindows.size())
+    {
+      QTabWindow* tabWindow = floatingWindows.at(index);
+      floatingWindowsZOrder.append(tabWindow);
+    }
+  }
 }
 
 QByteArray QTabFramework::saveLayout()
 {
   QByteArray result;
   QDataStream dataStream(&result, QIODevice::WriteOnly);
-  quint32 version = 100;
+  quint32 version = 101;
   dataStream << version;
   dataStream << (quint32)WindowType;
   writeLayout(dataStream);
   for(QList<QTabWindow*>::Iterator i = floatingWindows.begin(), end = floatingWindows.end(); i != end; ++i)
   {
+    QTabWindow* tabWindow = *i;
     dataStream << (quint32)WindowType;
-    (*i)->writeLayout(dataStream);
+    tabWindow->writeLayout(dataStream);
   }
   dataStream << (quint32)NoneType;
+  {
+    QList<quint32> zOrder;
+    for(QList<QTabWindow*>::Iterator i = floatingWindowsZOrder.begin(), end = floatingWindowsZOrder.end(); i != end; ++i)
+      zOrder.append(floatingWindows.indexOf(*i));
+    dataStream << zOrder;
+  }
   return result;
 }
 
@@ -893,28 +904,22 @@ void QTabFramework::toggleVisibility(QWidget* widget)
     hideTab(widget);
 }
 
-void QTabFramework::updateWindowZOrder(QWidget* widget)
-{
-  if(widget == this)
-    return;
-  QTabWindow* tabWindow = dynamic_cast<QTabWindow*>(widget);
-  if(!tabWindow)
-    return;
-  floatingWindows.removeOne(tabWindow);
-  floatingWindows.append(tabWindow);
-}
-
 void QTabFramework::showFloatingWindows()
 {
-  bool show = QMainWindow::isVisible();
-  QList<QTabWindow*> floatingWindows = this->floatingWindows;
-  for(QList<QTabWindow*>::Iterator i = floatingWindows.begin(), end = floatingWindows.end(); i != end; ++i)
+  if(!QMainWindow::isVisible())
   {
-    QTabWindow* tabWindow = *i;
-    show ? tabWindow->show() : tabWindow->hide();
+    for(QList<QTabWindow*>::Iterator i = floatingWindows.begin(), end = floatingWindows.end(); i != end; ++i)
+      (*i)->hide();
   }
-  if(show)
-    raise();
+  else
+  {
+    QList<QTabWindow*> floatingWindowsZOrder = this->floatingWindowsZOrder;
+    for(QList<QTabWindow*>::Iterator i = floatingWindows.begin(), end = floatingWindows.end(); i != end; ++i)
+      (*i)->show();
+    for(QList<QTabWindow*>::Iterator i = floatingWindowsZOrder.begin(), end = floatingWindowsZOrder.end(); i != end; ++i)
+      (*i)->raise();
+    activateWindow();
+  }
 }
 
 QString QTabFramework::tabObjectName(QWidget* widget)
@@ -1031,7 +1036,9 @@ QTabWindow* QTabFramework::createWindow()
 {
   QTabWindow* tabWindow = new QTabWindow(this);
   tabWindow->setAttribute(Qt::WA_DeleteOnClose);
+  tabWindow->installEventFilter(this);
   floatingWindows.append(tabWindow);
+  floatingWindowsZOrder.append(tabWindow);
   return tabWindow;
 }
 
@@ -1040,6 +1047,7 @@ void QTabFramework::removeWindow(QTabWindow* window)
   if(window == this)
     return;
   floatingWindows.removeOne(window);
+  floatingWindowsZOrder.removeOne(window);
   delete window;
 }
 
@@ -1074,19 +1082,35 @@ void QTabFramework::showEvent(QShowEvent* event)
 
 bool QTabFramework::eventFilter(QObject* obj, QEvent* event)
 {
-  if(event->type() == QEvent::WindowTitleChange)
+  switch(event->type())
   {
-    QWidget* widget = dynamic_cast<QWidget*>(obj);
-    QHash<QWidget*, TabData>::Iterator it = tabs.find(widget);
-    if(it != tabs.end())
+  case QEvent::WindowTitleChange:
     {
-      QTabContainer* tabContainer = dynamic_cast<QTabContainer*>(widget->parent()->parent());
-      if(tabContainer)
+      QWidget* widget = dynamic_cast<QWidget*>(obj);
+      QHash<QWidget*, TabData>::Iterator it = tabs.find(widget);
+      if(it != tabs.end())
       {
-        int index = tabContainer->indexOf(widget);
-        tabContainer->setTabText(index, widget->windowTitle());
+        QTabContainer* tabContainer = dynamic_cast<QTabContainer*>(widget->parent()->parent());
+        if(tabContainer)
+        {
+          int index = tabContainer->indexOf(widget);
+          tabContainer->setTabText(index, widget->windowTitle());
+        }
       }
     }
+    break;
+  case QEvent::WindowActivate:
+    {
+      QTabWindow* tabWindow = dynamic_cast<QTabWindow*>(obj);
+      if(floatingWindows.contains(tabWindow))
+      {
+        floatingWindowsZOrder.removeOne(tabWindow);
+        floatingWindowsZOrder.append(tabWindow);
+      }
+    }
+    break;
+  default:
+    break;
   }
 
   return QMainWindow::eventFilter(obj, event);
