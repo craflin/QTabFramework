@@ -168,6 +168,7 @@ QTabContainer::QTabContainer(QWidget* parent, QTabWindow* tabWindow) : QTabWidge
   setTabBar(new QTabDrawer(this));
   setDocumentMode(true);
   setAcceptDrops(true);
+  connect(this, SIGNAL(currentChanged(int)), this, SLOT(updateFocus(int)));
 }
 
 int QTabContainer::addTab(QWidget* widget, const QString& label)
@@ -182,6 +183,13 @@ int QTabContainer::insertTab(int index, QWidget* widget, const QString& label)
   index = QTabWidget::insertTab(index, widget, label);
   setTabToolTip(index, label);
   return index;
+}
+
+void QTabContainer::updateFocus(int index)
+{
+  QWidget* widget = this->widget(index);
+  if(widget)
+    widget->setFocus();
 }
 
 QRect QTabContainer::findDropRect(const QPoint& globalPos, QTabFramework::InsertPolicy& insertPolicy, QRect& tabRectResult, int& tabIndex)
@@ -375,7 +383,7 @@ void QTabContainer::dropEvent(QDropEvent* event)
   event->ignore();
 }
 
-QTabWindow::QTabWindow(QTabFramework* tabFramework) : tabFramework(tabFramework), overlayWidget(0), overlayWidgetTab(0)
+QTabWindow::QTabWindow(QTabFramework* tabFramework) : tabFramework(tabFramework), overlayWidget(0), overlayWidgetTab(0), focusTab(0)
 {
   new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_W), this, SLOT(hideCurrent()));
 }
@@ -529,6 +537,8 @@ void QTabWindow::closeEvent(QCloseEvent* event)
 QTabFramework::QTabFramework() : QTabWindow(this), moveTabWidget(0)
 {
   connect(&signalMapper, SIGNAL(mapped(QWidget*)), this, SLOT(toggleVisibility(QWidget*)));
+  
+  connect(qApp, SIGNAL(focusChanged(QWidget*, QWidget*)), this, SLOT(handleFocusChanged(QWidget*, QWidget*)));
 }
 
 QTabFramework::~QTabFramework()
@@ -936,6 +946,41 @@ void QTabFramework::showFloatingWindows()
   }
 }
 
+void QTabFramework::handleFocusChanged(QWidget* old, QWidget* now)
+{
+  if(now)
+  {
+    QWidget* widget = now;
+    QWidget* parent = dynamic_cast<QWidget*>(now->parent());
+    QWidget* parentParent = dynamic_cast<QWidget*>(parent->parent());
+    while(parentParent)
+    {
+      QTabContainer* tabContainer = dynamic_cast<QTabContainer*>(parentParent);
+      if(tabContainer)
+      {
+        if(tabContainer->tabWindow != tabContainer->tabWindow->tabFramework)
+        {
+          tabContainer->tabWindow->focusTab = widget;
+          tabContainer->tabWindow->setWindowTitle(widget->windowTitle());
+        }
+        break;
+      }
+      widget = parent;
+      parent = parentParent;
+      parentParent = dynamic_cast<QWidget*>(parent->parent());
+    }
+  }
+  else
+  {
+    for(QList<QTabWindow*>::Iterator i = floatingWindows.begin(), end = floatingWindows.end(); i != end; ++i)
+    {
+      QTabWindow* tabWindow = *i;
+      if(tabWindow->focusTab == old)
+        tabWindow->focusTab = 0;
+    }
+  }
+}
+
 QString QTabFramework::tabObjectName(QWidget* widget)
 {
   QHash<QWidget*, TabData>::Iterator it = tabs.find(widget);
@@ -1112,6 +1157,8 @@ bool QTabFramework::eventFilter(QObject* obj, QEvent* event)
           QString title = widget->windowTitle();
           tabContainer->setTabText(index, title);
           tabContainer->setTabToolTip(index, title);
+          if(tabContainer->tabWindow->focusTab == widget)
+            tabContainer->tabWindow->setWindowTitle(title);
         }
       }
     }
