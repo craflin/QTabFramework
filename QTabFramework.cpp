@@ -383,7 +383,7 @@ void QTabContainer::dropEvent(QDropEvent* event)
     QTabFramework::InsertPolicy insertPolicy;
     QRect tabRect;
     int tabIndex;
-    QRect rect = findDropRect(mapToGlobal(event->pos()), insertPolicy, tabRect, tabIndex);
+    findDropRect(mapToGlobal(event->pos()), insertPolicy, tabRect, tabIndex);
     if(sourceTabContainer == this && sourceTabContainer->count() == 1)
       tabRect = QRect();
     if(sourceTabContainer == this && (insertPolicy == QTabFramework::InsertOnTop || (sourceTabContainer->count() == 1  && insertPolicy != QTabFramework::Insert)) && !tabRect.isValid())
