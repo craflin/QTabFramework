@@ -547,10 +547,54 @@ void QTabWindow::hideAllTabs()
   }
 }
 
+int QTabWindow::tabCount()
+{
+  QWidget* centralWidget = this->centralWidget();
+  if(!centralWidget)
+    return 0;
+
+  int count = 0;
+  QLinkedList<QWidget*> widgets;
+  widgets.append(centralWidget);
+  for(QLinkedList<QWidget*>::Iterator i = widgets.begin(); i != widgets.end(); ++i)
+  {
+    QWidget* widget = *i;
+    QTabSplitter* tabSplitter = dynamic_cast<QTabSplitter*>(widget);
+    if(tabSplitter)
+    {
+      for(int i = 0, count = tabSplitter->count(); i < count; ++i)
+      {
+        QWidget* widget = tabSplitter->widget(i);
+        widgets.append(widget);
+      }
+    }
+    else
+    {
+      QTabContainer* tabContainer = dynamic_cast<QTabContainer*>(widget);
+      if(tabContainer)
+        count += tabContainer->count();
+    }
+  }
+  return count;
+}
+
 void QTabWindow::closeEvent(QCloseEvent* event)
 {
-  hideAllTabs();
+  //QTimer::singleShot(0, tabFramework, SLOT(close()));
+  //QMainWindow::closeEvent(event);
 
+  QTabContainer* centralTabContainer = dynamic_cast<QTabContainer*>(centralWidget());
+  if(!centralTabContainer || centralTabContainer->count() > 1)
+  {
+    if(QMessageBox::question(this, tr("Close Window"), tr("Do you really want to close all %1 tabs?").arg(tabCount()), QMessageBox::Yes | QMessageBox::No) != QMessageBox::Yes)
+    {
+      event->ignore();
+      return;
+    }
+  }
+  
+  hideAllTabs();
+  
   QMainWindow::closeEvent(event);
   
   tabFramework->removeWindow(this);

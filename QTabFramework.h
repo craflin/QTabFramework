@@ -38,6 +38,7 @@ private:
   void writeLayout(QDataStream& stream);
   void readLayout(QDataStream& stream);
   void hideAllTabs();
+  int tabCount();
 
   friend class QTabContainer;
   friend class QTabDrawer;
