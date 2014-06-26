@@ -586,7 +586,8 @@ void QTabWindow::closeEvent(QCloseEvent* event)
   QTabContainer* centralTabContainer = dynamic_cast<QTabContainer*>(centralWidget());
   if(!centralTabContainer || centralTabContainer->count() > 1)
   {
-    if(QMessageBox::question(this, tr("Close Window"), tr("Do you really want to close all %1 tabs?").arg(tabCount()), QMessageBox::Yes | QMessageBox::No) != QMessageBox::Yes)
+    int tabCount = this->tabCount();
+    if(QMessageBox::question(this, tr("Close Window"), tabCount == 2 ? tr("Do you really want to close both tabs?") : tr("Do you really want to close all %1 tabs?").arg(tabCount), QMessageBox::Yes | QMessageBox::No) != QMessageBox::Yes)
     {
       event->ignore();
       return;
