@@ -412,7 +412,7 @@ void QTabContainer::dropEvent(QDropEvent* event)
     }
     else
     {
-      if(sourceTabContainer == this && tabIndex > indexOf(event->source()))
+      if(sourceTabContainer == this && tabIndex - 1 > indexOf(event->source()))
         --tabIndex;
 
       tabWindow->tabFramework->moveTabLater(event->source(), this, insertPolicy, tabIndex);
