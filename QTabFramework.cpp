@@ -259,6 +259,12 @@ QRect QTabContainer::findDropRect(const QPoint& globalPos, int tabWidth, QTabFra
       insertPolicy = QTabFramework::InsertRight;
       result = QRect(QPoint(containerRect.x() + containerRect.width() * 2 / 3, containerRect.y()), containerRect.bottomRight());
     }
+    else if(pos.y() < containerRect.y() + tabBar()->geometry().height())
+    {
+      insertPolicy = QTabFramework::Insert;
+      result = containerRect;
+      tabIndex = this->tabBar()->count();
+    }
     else if(pos.y() < containerRect.y() + containerRect.height() / 3)
     {
       insertPolicy = QTabFramework::InsertTop;
