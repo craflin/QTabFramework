@@ -164,7 +164,7 @@ private slots:
   void handleCurrentChanged(int index);
 
 private:
-  QRect findDropRect(const QPoint& globalPos, QTabFramework::InsertPolicy& insertPolicy, QRect& tabRect, int& tabIndex);
+  QRect findDropRect(const QPoint& globalPos, int tabWidth, QTabFramework::InsertPolicy& insertPolicy, QRect& tabRect, int& tabIndex);
 
   void writeLayout(QDataStream& stream);
   void readLayout(QDataStream& stream);

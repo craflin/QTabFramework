@@ -67,12 +67,16 @@ void QTabDrawer::mouseMoveEvent(QMouseEvent* event)
       QWidget* dragWidget = tabContainer->widget(pressedIndex);
 
       QMimeData* mimeData = new QMimeData;
+      QRect tabRect = this->tabRect(pressedIndex);
+      int tabWidth = tabRect.width();
+
+      QByteArray data;
+      data.append((const char*)&tabWidth, sizeof(tabWidth));
       mimeData->setData("application/x-tabwidget", QByteArray());
 
       QDrag* drag = new QDrag(dragWidget);
       drag->setMimeData(mimeData);
 
-      QRect tabRect = this->tabRect(pressedIndex);
       QPixmap pixmap = QPixmap::grabWidget(this, tabRect);
       drag->setPixmap(pixmap);
       drag->setHotSpot(QPoint(event->pos().x() - tabRect.x(), event->pos().y() - tabRect.y()));
@@ -214,7 +218,7 @@ void QTabContainer::handleCurrentChanged(int index)
   }
 }
 
-QRect QTabContainer::findDropRect(const QPoint& globalPos, QTabFramework::InsertPolicy& insertPolicy, QRect& tabRectResult, int& tabIndex)
+QRect QTabContainer::findDropRect(const QPoint& globalPos, int tabWidth, QTabFramework::InsertPolicy& insertPolicy, QRect& tabRectResult, int& tabIndex)
 {
   QPoint pos = mapFromGlobal(globalPos);
   QRect containerRect = rect();
@@ -238,7 +242,7 @@ QRect QTabContainer::findDropRect(const QPoint& globalPos, QTabFramework::Insert
         if(tabRect.contains(pos))
         {
           tabRectResult = tabRect;
-          tabRectResult.setRight(tabRect.left() + tabRect.width() / 2);
+          tabRectResult.setRight(tabRect.left() + tabWidth);
           tabRectResult.translate(tabBar->mapToGlobal(QPoint(0, 0)));
           tabIndex = i;
           break;
@@ -318,13 +322,16 @@ void QTabContainer::readLayout(QDataStream& stream)
 
 void QTabContainer::dragEnterEvent(QDragEnterEvent* event)
 {
-  if(event->mimeData()->hasFormat("application/x-tabwidget"))
+  const QMimeData* mimeData = event->mimeData();
+  if(mimeData->hasFormat("application/x-tabwidget"))
   {
+    QByteArray tabMimeData = mimeData->data("application/x-tabwidget");
+    int tabWidth = tabMimeData.size() >= sizeof(int) ? *(const int*)tabMimeData.data() : 100;
     QTabContainer* sourceTabContainer = dynamic_cast<QTabContainer*>(event->source()->parent()->parent());
     QTabFramework::InsertPolicy insertPolicy;
     QRect tabRect;
     int tabIndex;
-    QRect rect = findDropRect(mapToGlobal(event->pos()), insertPolicy, tabRect, tabIndex);
+    QRect rect = findDropRect(mapToGlobal(event->pos()), tabWidth, insertPolicy, tabRect, tabIndex);
     if(sourceTabContainer == this && sourceTabContainer->count() == 1)
       tabRect = QRect();
     if(sourceTabContainer == this && (insertPolicy == QTabFramework::InsertOnTop || (sourceTabContainer->count() == 1 && insertPolicy != QTabFramework::Insert)) && !tabRect.isValid())
@@ -349,13 +356,16 @@ void QTabContainer::dragLeaveEvent(QDragLeaveEvent* event)
 
 void QTabContainer::dragMoveEvent(QDragMoveEvent* event)
 {
-  if(event->mimeData()->hasFormat("application/x-tabwidget"))
+  const QMimeData* mineData = event->mimeData();
+  if(mineData->hasFormat("application/x-tabwidget"))
   {
+    QByteArray tabMimeData = mineData->data("application/x-tabwidget");
+    int tabWidth = tabMimeData.size() >= sizeof(int) ? *(const int*)tabMimeData.data() : 100;
     QTabContainer* sourceTabContainer = dynamic_cast<QTabContainer*>(event->source()->parent()->parent());
     QTabFramework::InsertPolicy insertPolicy;
     QRect tabRect;
     int tabIndex;
-    QRect rect = findDropRect(mapToGlobal(event->pos()), insertPolicy, tabRect, tabIndex);
+    QRect rect = findDropRect(mapToGlobal(event->pos()), tabWidth, insertPolicy, tabRect, tabIndex);
     if(sourceTabContainer == this && sourceTabContainer->count() == 1)
       tabRect = QRect();
     if(sourceTabContainer == this && (insertPolicy == QTabFramework::InsertOnTop || (sourceTabContainer->count() == 1 && insertPolicy != QTabFramework::Insert)) && !tabRect.isValid())
@@ -377,13 +387,16 @@ void QTabContainer::dropEvent(QDropEvent* event)
 {
   tabWindow->setDropOverlayRect(QRect());
 
-  if(event->mimeData()->hasFormat("application/x-tabwidget"))
+  const QMimeData* mineData = event->mimeData();
+  if(mineData->hasFormat("application/x-tabwidget"))
   {
+    QByteArray tabMimeData = mineData->data("application/x-tabwidget");
+    int tabWidth = tabMimeData.size() >= sizeof(int) ? *(const int*)tabMimeData.data() : 100;
     QTabContainer* sourceTabContainer = dynamic_cast<QTabContainer*>(event->source()->parent()->parent());
     QTabFramework::InsertPolicy insertPolicy;
     QRect tabRect;
     int tabIndex;
-    findDropRect(mapToGlobal(event->pos()), insertPolicy, tabRect, tabIndex);
+    findDropRect(mapToGlobal(event->pos()), tabWidth, insertPolicy, tabRect, tabIndex);
     if(sourceTabContainer == this && sourceTabContainer->count() == 1)
       tabRect = QRect();
     if(sourceTabContainer == this && (insertPolicy == QTabFramework::InsertOnTop || (sourceTabContainer->count() == 1  && insertPolicy != QTabFramework::Insert)) && !tabRect.isValid())
