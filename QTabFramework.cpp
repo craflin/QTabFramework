@@ -332,7 +332,7 @@ void QTabContainer::dragEnterEvent(QDragEnterEvent* event)
   if(mimeData->hasFormat("application/x-tabwidget"))
   {
     QByteArray tabMimeData = mimeData->data("application/x-tabwidget");
-    int tabWidth = tabMimeData.size() >= sizeof(int) ? *(const int*)tabMimeData.data() : 100;
+    int tabWidth = tabMimeData.size() >= (int)sizeof(int) ? *(const int*)tabMimeData.data() : 100;
     QTabContainer* sourceTabContainer = dynamic_cast<QTabContainer*>(event->source()->parent()->parent());
     QTabFramework::InsertPolicy insertPolicy;
     QRect tabRect;
@@ -366,7 +366,7 @@ void QTabContainer::dragMoveEvent(QDragMoveEvent* event)
   if(mineData->hasFormat("application/x-tabwidget"))
   {
     QByteArray tabMimeData = mineData->data("application/x-tabwidget");
-    int tabWidth = tabMimeData.size() >= sizeof(int) ? *(const int*)tabMimeData.data() : 100;
+    int tabWidth = tabMimeData.size() >= (int)sizeof(int) ? *(const int*)tabMimeData.data() : 100;
     QTabContainer* sourceTabContainer = dynamic_cast<QTabContainer*>(event->source()->parent()->parent());
     QTabFramework::InsertPolicy insertPolicy;
     QRect tabRect;
@@ -397,7 +397,7 @@ void QTabContainer::dropEvent(QDropEvent* event)
   if(mineData->hasFormat("application/x-tabwidget"))
   {
     QByteArray tabMimeData = mineData->data("application/x-tabwidget");
-    int tabWidth = tabMimeData.size() >= sizeof(int) ? *(const int*)tabMimeData.data() : 100;
+    int tabWidth = tabMimeData.size() >= (int)sizeof(int) ? *(const int*)tabMimeData.data() : 100;
     QTabContainer* sourceTabContainer = dynamic_cast<QTabContainer*>(event->source()->parent()->parent());
     QTabFramework::InsertPolicy insertPolicy;
     QRect tabRect;
