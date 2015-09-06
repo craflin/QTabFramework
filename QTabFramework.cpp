@@ -1,5 +1,6 @@
 
 #include "stdafx.h"
+#include "QTabFramework.h"
 
 class QTabDropOverlay : public QWidget
 {
