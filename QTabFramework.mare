@@ -1,7 +1,9 @@
 
 QTabFramework = cppStaticLibrary + {
   defines += { "QT_SHARED", "QT_GUI_LIB", "QT_CORE_LIB", "QT_NO_DEBUG" }
-  dependencies = { "moc" }
+  if(tool == "vcxproj") {
+    dependencies = { "moc" }
+  }
   if(configuration == "Debug") {
       defines -= "QT_NO_DEBUG"
   }
@@ -19,7 +21,13 @@ QTabFramework = cppStaticLibrary + {
     "$(mocHeaderFiles)" = {
       output = "$(buildDir)/moc_$(basename $(notdir $(file))).cpp"
       message = "$(notdir $(file)) (Qt moc)"
-      command = "$(outputDir)/moc.exe -fstdafx.h -f$(patsubst $(mareDir)/%,%,$(file)) $(patsubst %,-D%,$(defines)) $(patsubst %,-I%,$(includePaths)) -D_MSC_VER=1600 -DWIN32 $(file) -o $(output)"
+      if(tool == "vcxproj") {
+        moc = "$(outputDir)/moc.exe -D_MSC_VER=1600"
+      }
+      else {
+        moc = "moc"
+      }
+      command = "$(moc) -fstdafx.h -f$(patsubst $(mareDir)/%,%,$(file)) $(patsubst %,-D%,$(defines)) $(patsubst %,-I%,$(includePaths)) $(file) -o $(output)"
     }
   }
   includePaths = { "$(mareDir)" }
