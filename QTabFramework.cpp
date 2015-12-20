@@ -1029,7 +1029,8 @@ void QTabFramework::showFloatingWindows()
       (*i)->show();
     for(QList<QTabWindow*>::Iterator i = floatingWindowsZOrder.begin(), end = floatingWindowsZOrder.end(); i != end; ++i)
       (*i)->raise();
-    activateWindow();
+    if(!floatingWindows.isEmpty())
+      activateWindow();
   }
 }
 
