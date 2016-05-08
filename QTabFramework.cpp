@@ -600,18 +600,25 @@ int QTabWindow::tabCount()
 
 void QTabWindow::closeEvent(QCloseEvent* event)
 {
-  //QTimer::singleShot(0, tabFramework, SLOT(close()));
+  //event->ignore();
   //QMainWindow::closeEvent(event);
+  //
+  //QTimer::singleShot(0, tabFramework, SLOT(close()));
 
   QTabContainer* centralTabContainer = dynamic_cast<QTabContainer*>(centralWidget());
   if(!centralTabContainer || centralTabContainer->count() > 1)
   {
-    int tabCount = this->tabCount();
-    if(QMessageBox::question(this, tr("Close Window"), tabCount == 2 ? tr("Do you really want to close both tabs?") : tr("Do you really want to close all %1 tabs?").arg(tabCount), QMessageBox::Yes | QMessageBox::No) != QMessageBox::Yes)
-    {
-      event->ignore();
-      return;
-    }
+    event->ignore();
+    QMainWindow::closeEvent(event);
+ 
+    QTimer::singleShot(0, tabFramework, SLOT(close()));
+
+    //int tabCount = this->tabCount();
+    //if(QMessageBox::question(this, tr("Close Window"), tabCount == 2 ? tr("Do you really want to close both tabs?") : tr("Do you really want to close all %1 tabs?").arg(tabCount), QMessageBox::Yes | QMessageBox::No) != QMessageBox::Yes)
+    //{
+    //  event->ignore();
+    //  return;
+    //}
   }
   
   hideAllTabs();
