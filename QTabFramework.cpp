@@ -619,6 +619,7 @@ void QTabWindow::closeEvent(QCloseEvent* event)
     //  event->ignore();
     //  return;
     //}
+    return;
   }
   
   hideAllTabs();
