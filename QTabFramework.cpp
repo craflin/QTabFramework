@@ -609,7 +609,7 @@ void QTabWindow::closeEvent(QCloseEvent* event)
   //if(!centralTabContainer || centralTabContainer->count() > 1)
   {
     event->ignore();
-    QMainWindow::closeEvent(event);
+    //QMainWindow::closeEvent(event);
  
     QTimer::singleShot(0, tabFramework, SLOT(close()));
 
@@ -819,17 +819,16 @@ void QTabFramework::restoreLayout(const QByteArray& layout)
     }
     dataStream >> type;
   }
-  QList<quint32> zOrder;
+  QList<qint32> zOrder;
   dataStream >> zOrder;
-  floatingWindowsZOrder.clear();
-  for(QList<quint32>::Iterator i = zOrder.begin(), end = zOrder.end(); i != end; ++i)
+  floatingWindowsZOrderToRestore.clear();
+  for(QList<qint32>::Iterator i = zOrder.begin(), end = zOrder.end(); i != end; ++i)
   {
-    quint32 index = *i;
-    if(index < (quint32)floatingWindows.size())
-    {
-      QTabWindow* tabWindow = floatingWindows.at(index);
-      floatingWindowsZOrder.append(tabWindow);
-    }
+    qint32 index = *i;
+    if(index < 0)
+      floatingWindowsZOrderToRestore.append(this);
+    else if(index < (qint32)floatingWindows.size())
+      floatingWindowsZOrderToRestore.append(floatingWindows.at(index));
   }
 }
 
@@ -849,7 +848,7 @@ QByteArray QTabFramework::saveLayout()
   }
   dataStream << (quint32)NoneType;
   {
-    QList<quint32> zOrder;
+    QList<qint32> zOrder;
     for(QList<QTabWindow*>::Iterator i = floatingWindowsZOrder.begin(), end = floatingWindowsZOrder.end(); i != end; ++i)
       zOrder.append(floatingWindows.indexOf(*i));
     dataStream << zOrder;
@@ -1032,13 +1031,14 @@ void QTabFramework::showFloatingWindows()
   }
   else
   {
-    QList<QTabWindow*> floatingWindowsZOrder = this->floatingWindowsZOrder;
+    if(!floatingWindowsZOrderToRestore.contains(this))
+      floatingWindowsZOrderToRestore.append(this);
     for(QList<QTabWindow*>::Iterator i = floatingWindows.begin(), end = floatingWindows.end(); i != end; ++i)
       (*i)->show();
-    for(QList<QTabWindow*>::Iterator i = floatingWindowsZOrder.begin(), end = floatingWindowsZOrder.end(); i != end; ++i)
+    for(QList<QTabWindow*>::Iterator i = floatingWindowsZOrderToRestore.begin(), end = floatingWindowsZOrderToRestore.end(); i != end; ++i)
       (*i)->raise();
-    if(!floatingWindows.isEmpty())
-      activateWindow();
+    floatingWindowsZOrderToRestore.back()->activateWindow();
+    floatingWindowsZOrderToRestore.clear();
   }
 }
 
@@ -1281,4 +1281,14 @@ bool QTabFramework::eventFilter(QObject* obj, QEvent* event)
   }
 
   return QMainWindow::eventFilter(obj, event);
+}
+
+bool QTabFramework::event(QEvent* event)
+{
+  if (event->type() == QEvent::WindowActivate)
+  {
+    floatingWindowsZOrder.removeOne(this);
+    floatingWindowsZOrder.append(this);
+  }
+  return QMainWindow::event(event);
 }

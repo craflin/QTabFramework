@@ -81,6 +81,7 @@ protected:
   virtual void closeEvent(QCloseEvent* event);
   virtual void showEvent(QShowEvent* event);
   virtual bool eventFilter(QObject* obj, QEvent* event);
+  virtual bool event(QEvent* event);
 
 private:
   struct TabData
@@ -94,6 +95,7 @@ private:
 private:
   QList<QTabWindow*> floatingWindows;
   QList<QTabWindow*> floatingWindowsZOrder;
+  QList<QTabWindow*> floatingWindowsZOrderToRestore;
   QHash<QWidget*, TabData> tabs;
   QHash<QString, TabData*> tabsByName;
   QSignalMapper signalMapper;
