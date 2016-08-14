@@ -605,8 +605,8 @@ void QTabWindow::closeEvent(QCloseEvent* event)
   //
   //QTimer::singleShot(0, tabFramework, SLOT(close()));
 
-  QTabContainer* centralTabContainer = dynamic_cast<QTabContainer*>(centralWidget());
-  if(!centralTabContainer || centralTabContainer->count() > 1)
+  //QTabContainer* centralTabContainer = dynamic_cast<QTabContainer*>(centralWidget());
+  //if(!centralTabContainer || centralTabContainer->count() > 1)
   {
     event->ignore();
     QMainWindow::closeEvent(event);
@@ -622,11 +622,11 @@ void QTabWindow::closeEvent(QCloseEvent* event)
     return;
   }
   
-  hideAllTabs();
-  
-  QMainWindow::closeEvent(event);
-  
-  tabFramework->removeWindow(this);
+  //hideAllTabs();
+  //
+  //QMainWindow::closeEvent(event);
+  //
+  //tabFramework->removeWindow(this);
 }
 
 QTabFramework::QTabFramework() : QTabWindow(this), moveTabWidget(0)
