@@ -1,7 +1,7 @@
 
 cmake_minimum_required(VERSION 3.5)
 
-project(QTabFrameworkExample VERSION 1.0.0)
+project(QTabFrameworkExample VERSION 1.1.0)
 
 find_package(Qt6 COMPONENTS Widgets)
 
