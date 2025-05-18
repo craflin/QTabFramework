@@ -1,6 +1,16 @@
 
-#include "stdafx.h"
-#include "QTabFramework.h"
+#include "QTabFramework.hpp"
+
+#include <QPainter>
+#include <QMouseEvent>
+#include <QApplication>
+#include <QMimeData>
+#include <QDrag>
+#include <QShortcut>
+#include <QTimer>
+#include <QAction>
+
+#include <list>
 
 class QTabDropOverlay : public QWidget
 {
@@ -27,6 +37,7 @@ QTabDrawer::QTabDrawer(QTabContainer* tabContainer) : QTabBar(tabContainer), tab
   setTabsClosable(true);
   setUsesScrollButtons(true);
   setElideMode(Qt::ElideRight);
+  //connect(this, &QTabDrawer::tabCloseRequested, this, &QTabDrawer::closeTab);
   connect(this, SIGNAL(tabCloseRequested(int)), this, SLOT(closeTab(int)));
 }
 
@@ -78,7 +89,7 @@ void QTabDrawer::mouseMoveEvent(QMouseEvent* event)
       QDrag* drag = new QDrag(dragWidget);
       drag->setMimeData(mimeData);
 
-      QPixmap pixmap = QPixmap::grabWidget(this, tabRect);
+      QPixmap pixmap = grab(tabRect);
       drag->setPixmap(pixmap);
       drag->setHotSpot(QPoint(event->pos().x() - tabRect.x(), event->pos().y() - tabRect.y()));
       //drag->setHotSpot(QPoint(dragStartPosition.x() - tabRect.x(), dragStartPosition.y() - tabRect.y()));
@@ -338,7 +349,7 @@ void QTabContainer::dragEnterEvent(QDragEnterEvent* event)
     QTabFramework::InsertPolicy insertPolicy;
     QRect tabRect;
     int tabIndex;
-    QRect rect = findDropRect(mapToGlobal(event->pos()), tabWidth, insertPolicy, tabRect, tabIndex);
+    QRect rect = findDropRect(mapToGlobal(event->position().toPoint()), tabWidth, insertPolicy, tabRect, tabIndex);
     if(sourceTabContainer == this && sourceTabContainer->count() == 1)
       tabRect = QRect();
     if(sourceTabContainer == this && (insertPolicy == QTabFramework::InsertOnTop || (sourceTabContainer->count() == 1 && insertPolicy != QTabFramework::Insert)) && !tabRect.isValid())
@@ -372,7 +383,7 @@ void QTabContainer::dragMoveEvent(QDragMoveEvent* event)
     QTabFramework::InsertPolicy insertPolicy;
     QRect tabRect;
     int tabIndex;
-    QRect rect = findDropRect(mapToGlobal(event->pos()), tabWidth, insertPolicy, tabRect, tabIndex);
+    QRect rect = findDropRect(mapToGlobal(event->position().toPoint()), tabWidth, insertPolicy, tabRect, tabIndex);
     if(sourceTabContainer == this && sourceTabContainer->count() == 1)
       tabRect = QRect();
     if(sourceTabContainer == this && (insertPolicy == QTabFramework::InsertOnTop || (sourceTabContainer->count() == 1 && insertPolicy != QTabFramework::Insert)) && !tabRect.isValid())
@@ -395,7 +406,8 @@ void QTabContainer::dropEvent(QDropEvent* event)
   tabWindow->setDropOverlayRect(QRect());
 
   const QMimeData* mineData = event->mimeData();
-  if(mineData->hasFormat("application/x-tabwidget"))
+  QWidget* eventSource = qobject_cast<QWidget*>(event->source());
+  if(mineData->hasFormat("application/x-tabwidget") && eventSource)
   {
     QByteArray tabMimeData = mineData->data("application/x-tabwidget");
     int tabWidth = tabMimeData.size() >= (int)sizeof(int) ? *(const int*)tabMimeData.data() : 100;
@@ -403,20 +415,20 @@ void QTabContainer::dropEvent(QDropEvent* event)
     QTabFramework::InsertPolicy insertPolicy;
     QRect tabRect;
     int tabIndex;
-    findDropRect(mapToGlobal(event->pos()), tabWidth, insertPolicy, tabRect, tabIndex);
+    findDropRect(mapToGlobal(event->position().toPoint()), tabWidth, insertPolicy, tabRect, tabIndex);
     if(sourceTabContainer == this && sourceTabContainer->count() == 1)
       tabRect = QRect();
     if(sourceTabContainer == this && (insertPolicy == QTabFramework::InsertOnTop || (sourceTabContainer->count() == 1  && insertPolicy != QTabFramework::Insert)) && !tabRect.isValid())
     {
-      tabWindow->tabFramework->moveTabLater(event->source(), this, QTabFramework::InsertFloating, tabIndex);
+      tabWindow->tabFramework->moveTabLater(eventSource, this, QTabFramework::InsertFloating, tabIndex);
       event->acceptProposedAction();
     }
     else
     {
-      if(sourceTabContainer == this && tabIndex - 1 > indexOf(event->source()))
+      if(sourceTabContainer == this && tabIndex - 1 > indexOf(eventSource))
         --tabIndex;
 
-      tabWindow->tabFramework->moveTabLater(event->source(), this, insertPolicy, tabIndex);
+      tabWindow->tabFramework->moveTabLater(eventSource, this, insertPolicy, tabIndex);
       event->acceptProposedAction();
     }
     tabWindow->setDropOverlayRect(QRect());
@@ -427,7 +439,7 @@ void QTabContainer::dropEvent(QDropEvent* event)
 
 QTabWindow::QTabWindow(QTabFramework* tabFramework) : tabFramework(tabFramework), overlayWidget(0), overlayWidgetTab(0), focusTab(0)
 {
-  new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_W), this, SLOT(hideCurrent()));
+  new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_W), this, SLOT(hideCurrent()));
 }
 
 void QTabWindow::hideCurrent()
@@ -543,9 +555,9 @@ void QTabWindow::hideAllTabs()
   if(!centralWidget)
     return;
 
-  QLinkedList<QWidget*> widgets;
-  widgets.append(centralWidget);
-  for(QLinkedList<QWidget*>::Iterator i = widgets.begin(); i != widgets.end(); ++i)
+  std::list<QWidget*> widgets;
+  widgets.push_back(centralWidget);
+  for(std::list<QWidget*>::iterator i = widgets.begin(); i != widgets.end(); ++i)
   {
     QWidget* widget = *i;
     QTabSplitter* tabSplitter = dynamic_cast<QTabSplitter*>(widget);
@@ -554,7 +566,7 @@ void QTabWindow::hideAllTabs()
       for(int i = 0, count = tabSplitter->count(); i < count; ++i)
       {
         QWidget* widget = tabSplitter->widget(i);
-        widgets.append(widget);
+        widgets.push_back(widget);
       }
     }
     else
@@ -574,9 +586,9 @@ int QTabWindow::tabCount()
     return 0;
 
   int count = 0;
-  QLinkedList<QWidget*> widgets;
-  widgets.append(centralWidget);
-  for(QLinkedList<QWidget*>::Iterator i = widgets.begin(); i != widgets.end(); ++i)
+  std::list<QWidget*> widgets;
+  widgets.push_back(centralWidget);
+  for(std::list<QWidget*>::iterator i = widgets.begin(); i != widgets.end(); ++i)
   {
     QWidget* widget = *i;
     QTabSplitter* tabSplitter = dynamic_cast<QTabSplitter*>(widget);
@@ -585,7 +597,7 @@ int QTabWindow::tabCount()
       for(int i = 0, count = tabSplitter->count(); i < count; ++i)
       {
         QWidget* widget = tabSplitter->widget(i);
-        widgets.append(widget);
+        widgets.push_back(widget);
       }
     }
     else
@@ -631,7 +643,7 @@ void QTabWindow::closeEvent(QCloseEvent* event)
 
 QTabFramework::QTabFramework() : QTabWindow(this), moveTabWidget(0)
 {
-  connect(&signalMapper, SIGNAL(mapped(QWidget*)), this, SLOT(toggleVisibility(QWidget*)));
+  connect(&signalMapper, &QSignalMapper::mappedObject, this,  [=](QObject* obj){ this->toggleVisibility(qobject_cast<QWidget*>(obj)); });
   
   connect(qApp, SIGNAL(focusChanged(QWidget*, QWidget*)), this, SLOT(handleFocusChanged(QWidget*, QWidget*)));
 }

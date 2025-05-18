@@ -1,6 +1,12 @@
 
 #pragma once
 
+#include <QMainWindow>
+#include <QHash>
+#include <QSignalMapper>
+#include <QSplitter>
+#include <QTabBar>
+
 class QTabFramework;
 class QTabContainer;
 
