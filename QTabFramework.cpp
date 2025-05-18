@@ -37,8 +37,7 @@ QTabDrawer::QTabDrawer(QTabContainer* tabContainer) : QTabBar(tabContainer), tab
   setTabsClosable(true);
   setUsesScrollButtons(true);
   setElideMode(Qt::ElideRight);
-  //connect(this, &QTabDrawer::tabCloseRequested, this, &QTabDrawer::closeTab);
-  connect(this, SIGNAL(tabCloseRequested(int)), this, SLOT(closeTab(int)));
+  connect(this, &QTabDrawer::tabCloseRequested, this, &QTabDrawer::closeTab);
 }
 
 void QTabDrawer::mousePressEvent(QMouseEvent* event)
@@ -184,7 +183,7 @@ QTabContainer::QTabContainer(QWidget* parent, QTabWindow* tabWindow) : QTabWidge
   setTabBar(new QTabDrawer(this));
   //setDocumentMode(true);
   setAcceptDrops(true);
-  connect(this, SIGNAL(currentChanged(int)), this, SLOT(handleCurrentChanged(int)));
+  connect(this, &QTabContainer::currentChanged, this, &QTabContainer::handleCurrentChanged);
 }
 
 int QTabContainer::addTab(QWidget* widget, const QString& label)
@@ -644,8 +643,7 @@ void QTabWindow::closeEvent(QCloseEvent* event)
 QTabFramework::QTabFramework() : QTabWindow(this), moveTabWidget(0)
 {
   connect(&signalMapper, &QSignalMapper::mappedObject, this,  [=](QObject* obj){ this->toggleVisibility(qobject_cast<QWidget*>(obj)); });
-  
-  connect(qApp, SIGNAL(focusChanged(QWidget*, QWidget*)), this, SLOT(handleFocusChanged(QWidget*, QWidget*)));
+  connect(qApp, &QApplication::focusChanged, this, &QTabFramework::handleFocusChanged);
 }
 
 QTabFramework::~QTabFramework()
@@ -772,7 +770,7 @@ QAction* QTabFramework::toggleViewAction(QWidget* widget)
     tabData.action = new QAction(widget->windowTitle(), this);
     tabData.action->setCheckable(true);
     tabData.action->setChecked(!tabData.hidden);
-    connect(tabData.action, SIGNAL(triggered()), &signalMapper, SLOT(map()));
+    connect(tabData.action, &QAction::triggered, &signalMapper, qOverload<>(&QSignalMapper::map));
     signalMapper.setMapping(tabData.action, widget);
   }
   return tabData.action;
