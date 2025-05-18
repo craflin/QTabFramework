@@ -183,7 +183,7 @@ QTabContainer::QTabContainer(QWidget* parent, QTabWindow* tabWindow) : QTabWidge
   setTabBar(new QTabDrawer(this));
   //setDocumentMode(true);
   setAcceptDrops(true);
-  connect(this, &QTabContainer::currentChanged, this, &QTabContainer::handleCurrentChanged);
+  connect(this, &QTabContainer::currentChanged, this, &QTabContainer::onCurrentChanged);
 }
 
 int QTabContainer::addTab(QWidget* widget, const QString& label)
@@ -205,10 +205,10 @@ void QTabContainer::removeTab(int index)
   QWidget* widget = this->widget(index);
   QTabWidget::removeTab(index);
   if(widget == tabWindow->focusTab)
-    tabWindow->tabFramework->handleFocusChanged(widget, this->widget(this->currentIndex()));
+    tabWindow->tabFramework->onFocusChanged(widget, this->widget(this->currentIndex()));
 }
 
-void QTabContainer::handleCurrentChanged(int index)
+void QTabContainer::onCurrentChanged(int index)
 {
   QWidget* widget = this->widget(index);
   if(widget)
@@ -643,7 +643,7 @@ void QTabWindow::closeEvent(QCloseEvent* event)
 QTabFramework::QTabFramework() : QTabWindow(this), moveTabWidget(0)
 {
   connect(&signalMapper, &QSignalMapper::mappedObject, this,  [=](QObject* obj){ this->toggleVisibility(qobject_cast<QWidget*>(obj)); });
-  connect(qApp, &QApplication::focusChanged, this, &QTabFramework::handleFocusChanged);
+  connect(qApp, &QApplication::focusChanged, this, &QTabFramework::onFocusChanged);
 }
 
 QTabFramework::~QTabFramework()
@@ -1052,7 +1052,7 @@ void QTabFramework::showFloatingWindows()
   }
 }
 
-void QTabFramework::handleFocusChanged(QWidget* old, QWidget* now)
+void QTabFramework::onFocusChanged(QWidget* old, QWidget* now)
 {
   if(now)
   {

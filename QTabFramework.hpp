@@ -115,7 +115,7 @@ private slots:
   void executeMoveTab();
   void toggleVisibility(QWidget* widget);
   void showFloatingWindows();
-  void handleFocusChanged(QWidget* old, QWidget* now);
+  void onFocusChanged(QWidget* old, QWidget* now);
 
 private:
   void addTab(QWidget* widget, QTabContainer* position, InsertPolicy insertPolicy, int tabIndex);
@@ -169,7 +169,7 @@ private:
   QTabWindow* tabWindow;
 
 private slots:
-  void handleCurrentChanged(int index);
+  void onCurrentChanged(int index);
 
 private:
   QRect findDropRect(const QPoint& globalPos, int tabWidth, QTabFramework::InsertPolicy& insertPolicy, QRect& tabRect, int& tabIndex);
